@@ -50,19 +50,21 @@ function AppContent() {
           }}
         />
       )}
-      
+
       {view === "studyPlan" && (
         <StudyPlanDetail planId={planId} onBack={() => setView("dashboard")} />
       )}
 
       {view === "subject" && (
         <SubjectView
-          subjectId={subjectId}
-          onBack={() => setView("dashboard")}
+          subject={{
+            name: "Razonamiento Verbal",
+            description:
+              "Comprensión lectora, analogías, antónimos y sinónimos",
+          }}
+          onBack={() => navigate("/dashboard")}
         />
       )}
-
-      
 
       {view === "generalSimulator" && (
         <GeneralSimulator onBack={() => setView("dashboard")} />

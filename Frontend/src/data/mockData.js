@@ -136,7 +136,7 @@ export const quickActions = [
 export const studyPlans = [
   {
     id: "plan-basico",
-    title: "Plan Básico (2 semanas)",
+    title: "Fundamentos de Razonamiento Verbal",
     description:
       "Plan de repaso intensivo con foco en temas de mayor impacto.",
     progress: 40,
@@ -144,7 +144,7 @@ export const studyPlans = [
   },
   {
     id: "plan-completo",
-    title: "Plan Completo (1 mes)",
+    title: "Álgebra y Geometría Básica",
     description:
       "Cobertura equilibrada de verbal y matemáticas con práctica diaria.",
     progress: 15,
