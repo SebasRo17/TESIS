@@ -2,6 +2,7 @@ import type { AuthRepository, TokenService, PasswordHasher } from "../domain/Aut
 import { AppError } from "../../../core/errors/AppError";
 import type { Result } from "../../../utils/result";
 import { ok, err } from "../../../utils/result";
+import { prisma } from "../../../infra/db/prisma";
 
 export interface RefreshTokenInput {
     refreshToken: string;
@@ -42,18 +43,29 @@ export class RefreshTokenUseCase {
                 return err(new AppError("Usuario inactivo", 403));
             }
 
-            // Paso 4: Verificar que el refresh token exista en la base de datos
-            const refreshHash = await this.passwordHasher.hash(input.refreshToken);
-            const tokenExists = await this.authRepository.verifyRefreshTokenExists(
-                user.id, 
-                refreshHash
-            );
+            // Paso 4: Verificar que el refresh token exista comparándolo contra los hashes
+            const sessions = await prisma.authSession.findMany({
+                where: { userId: user.id },
+            });
 
-            if (!tokenExists) {
+            // Buscar una sesión donde el token coincida con el hash almacenado
+            let validSession = null;
+            for (const session of sessions) {
+                const isValid = await this.passwordHasher.compare(
+                    input.refreshToken,
+                    session.refreshTokenHash
+                );
+                if (isValid) {
+                    validSession = session;
+                    break;
+                }
+            }
+
+            if (!validSession) {
                 return err(new AppError("Token de actualización no válido", 401));
             }
 
-            //Paso 5: Generar nuevos tokens
+            // Paso 5: Generar nuevos tokens
             const newAccessToken = this.tokenService.signAccess({
                 id: user.id,
                 email: user.email,
@@ -64,7 +76,10 @@ export class RefreshTokenUseCase {
             });
 
             // Paso 6: Revocar token anterior y guardar el nuevo refresh token
-            await this.authRepository.revokeRefreshToken(user.id, refreshHash);
+            await this.authRepository.revokeRefreshToken(
+                user.id,
+                validSession.refreshTokenHash
+            );
             const newRefreshHash = await this.passwordHasher.hash(newRefreshToken);
             await this.authRepository.storeRefreshToken(
                 user.id,

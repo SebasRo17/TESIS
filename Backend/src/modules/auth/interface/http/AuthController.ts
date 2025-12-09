@@ -93,8 +93,15 @@ export class AuthController {
                 return;
             }
 
-            const { logoutAll } = req.body as LogoutRequest;
-            const { refreshToken } = req.body as { refreshToken?: string };
+            const { logoutAll, refreshToken } = req.body as LogoutRequest & { refreshToken?: string };
+
+            // Validar que si logoutAll es false, se proporcione refreshToken
+            if (!logoutAll && !refreshToken) {
+                res.status(400).json({
+                    error: 'Se requiere refreshToken o logoutAll=true',
+                });
+                return;
+            }
 
             const result = await this.logoutUseCase.execute({
                 userId: req.user.id,
