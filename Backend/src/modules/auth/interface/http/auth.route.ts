@@ -11,7 +11,7 @@ import { createAuthMiddleware } from "./middlewares/AuthMiddleware";
 export function createAuthRoutes(): Router {
     const router = Router();
 
-    //Inyeccion de dependencias
+    // Inyección de dependencias
     const repository = new PrismaAuthRepository();
     const passwordHasher = new BcryptPasswordHasher();
     const tokenService = new JwtTokenService();
@@ -21,24 +21,32 @@ export function createAuthRoutes(): Router {
         passwordHasher, 
         tokenService
     );
+
     const refreshTokenUseCase = new RefreshTokenUseCase(
         repository,
         tokenService,
         passwordHasher
     );
+
     const logoutUseCase = new LogoutUseCase(
-        repository
+        repository,
+        passwordHasher
     );
-    const authController = new AuthController(loginUseCase, refreshTokenUseCase, logoutUseCase);
+
+    const authController = new AuthController(
+        loginUseCase, 
+        refreshTokenUseCase, 
+        logoutUseCase
+    );
     
-    //Middleware de autenticacion
+    // Middleware de autenticación
     const authMiddleware = createAuthMiddleware(tokenService);
 
-    //Rutas publicas
+    // Rutas públicas
     router.post('/login', (req, res) => authController.login(req, res));
     router.post('/refresh', (req, res) => authController.refreshToken(req, res));
 
-    //Rutas protegidas
+    // Rutas protegidas
     router.post('/logout', authMiddleware, (req, res) => authController.logout(req, res));
 
     return router;

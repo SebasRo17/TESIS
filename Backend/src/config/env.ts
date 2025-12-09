@@ -7,17 +7,19 @@ function required(name: string): string {
 }
 
 export const env = {
-    nodeEnv: process.env.NODE_ENV || 'development', 
-    port: parseInt(process.env.PORT || '3000', 10),
-
-    // JWT configuration
+    node_env: process.env.NODE_ENV || "development",
+    port: parseInt(process.env.PORT || "3000", 10),
+    
+    // JWT Configuration
     jwt: {
-        accessSecret: process.env.JWT_ACCESS_SECRET || required('JWT_ACCESS_SECRET'),
-        refreshSecret: process.env.JWT_REFRESH_SECRET || required('JWT_REFRESH_SECRET'),
-        accessTtl: process.env.JWT_ACCESS_TTL || '15m',
-        refreshTtl: process.env.JWT_REFRESH_TTL || '7d',
+        accessSecret: process.env.JWT_ACCESS_SECRET || "your-access-secret-key",
+        accessTtl: (process.env.JWT_ACCESS_TTL || "15m") as string,
+        refreshSecret: process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key",
+        refreshTtl: (process.env.JWT_REFRESH_TTL || "7d") as string,
     },
 
-    // Database configuration
-    dbUrl: required('DATABASE_URL')
+    // Base de datos
+    database: {
+        url: process.env.DATABASE_URL || "mysql://user:password@localhost:3306/base_tesis",
+    },
 };
