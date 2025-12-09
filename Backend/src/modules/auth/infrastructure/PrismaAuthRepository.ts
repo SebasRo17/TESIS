@@ -54,7 +54,7 @@ export class PrismaAuthRepository implements AuthRepository {
 
     async storeRefreshToken(
         userId: number,
-        refreshToken: string,
+        refreshHash: string,
         ip?: string,
         ua?: string
     ): Promise<void> {
@@ -87,7 +87,7 @@ export class PrismaAuthRepository implements AuthRepository {
                 refreshTokenHash: refreshHash,
             },
         });
-        return !!session;
+        return !!token;
     }
 
     async revokeAllRefreshTokens(userId: number): Promise<void> {

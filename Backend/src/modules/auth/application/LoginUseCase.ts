@@ -50,10 +50,10 @@ export class LoginUseCase {
             }
 
             // Paso 4: Generar tokens
-            const accesToken = this.tokenService.signAccess({
+            const accessToken = this.tokenService.signAccess({
                 id: user.id,
                 email: user.email
-            })
+            });
             const refreshToken = this.tokenService.signRefresh({
                 id: user.id,
                 email: user.email
@@ -73,7 +73,7 @@ export class LoginUseCase {
                     id: user.id,
                     email: user.email
                 },
-                accessToken: accesToken,
+                accessToken: accessToken,
                 refreshToken: refreshToken
             });
         } catch (error) {

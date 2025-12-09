@@ -6,44 +6,49 @@ import type { LoginRequest } from "./dto/LoginRequest";
 import type { RefreshTokenRequest } from "./dto/RefreshTokenRequest";
 import type { LogoutRequest } from "./dto/LogoutRequest";
 import { AppError } from "../../../../core/errors/AppError";
+import type { AuthenticatedRequest } from "./middlewares/AuthMiddleware";
 
 export class AuthController {
-    constructor(private loginUseCase: LoginUseCase) {}
+    constructor(
+        private loginUseCase: LoginUseCase,
+        private refreshTokenUseCase: RefreshTokenUseCase,
+        private logoutUseCase: LogoutUseCase
+    ) {}
 
     async login(req: Request, res: Response): Promise<void> {
-        try{
+        try {
             const { email, password } = req.body as LoginRequest;
-        }
 
-        //Validacion basica de los datos de entrada
-        if (!email || !password) {
-            res.status(400).json({ 
-                error: 'Email y contraseña son requeridos',
+            // Validación básica
+            if (!email || !password) {
+                res.status(400).json({ 
+                    error: 'Email y contraseña son requeridos',
+                });
+                return;
+            }
+
+            // Ejecutar caso de uso
+            const result = await this.loginUseCase.execute({
+                email,
+                password,
+                ip: req.ip,
+                userAgent: req.get("user-agent"),
             });
-            return;
-        }
 
-        //Ejecutar caso de uso
-        const result = await this.loginUseCase.execute({
-            email,
-            password,
-            ip: req.ip,
-            userAgent: req.get("user-agent"),
-        });
+            if (!result.ok) {
+                const error = result.error as AppError;
+                res.status(error.status).json({
+                    error: error.message,
+                });
+                return;
+            }
 
-        if (!result.ok) {
-            const error = result.error as AppError;
-            res.status(error.status).json({
-                error:  error.message,
+            res.status(200).json(result.value);
+        } catch (error) {
+            res.status(500).json({
+                error: 'Error interno del servidor',
             });
-            return;
         }
-
-        res.status(200).json(result.value);
-    } catch (error) {
-        res.status(500).json({
-            error: 'Error interno del servidor',
-        });
     }
 
     async refreshToken(req: Request, res: Response): Promise<void> {
