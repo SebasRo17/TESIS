@@ -15,7 +15,7 @@ export class PrismaAuthRepository implements AuthRepository {
                 id: user.id,
                 email: user.email,
                 password_hash: user.passwordHash,
-                status: user.status,
+                status: user.status as "active" | "inactive" | "pending",
                 created_at: user.createdAt,
             };
         } catch (error) {
@@ -35,7 +35,7 @@ export class PrismaAuthRepository implements AuthRepository {
                 id: user.id,
                 email: user.email,
                 password_hash: user.passwordHash,
-                status: user.status,
+                status: user.status as "active" | "inactive" | "pending",
                 created_at: user.createdAt,
             };
         } catch (error) {
@@ -57,7 +57,7 @@ export class PrismaAuthRepository implements AuthRepository {
                 id: user.id,
                 email: user.email,
                 password_hash: user.passwordHash,
-                status: user.status,
+                status: user.status as "active" | "inactive" | "pending",
                 created_at: user.createdAt,
             };
         } catch (error) {

@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import type { LoginUseCase } from "../../application/LoginUseCase";
 import type { RefreshTokenUseCase } from "../../application/RefreshTokenUseCase";
 import type { LogoutUseCase } from "../../application/LogoutUseCase";
@@ -31,8 +31,8 @@ export class AuthController {
             const result = await this.loginUseCase.execute({
                 email,
                 password,
-                ip: req.ip,
-                userAgent: req.get("user-agent"),
+                ip: req.ip || "",
+                userAgent: req.get("user-agent") || "",
             });
 
             if (!result.ok) {
@@ -64,8 +64,8 @@ export class AuthController {
 
             const result = await this.refreshTokenUseCase.execute({
                 refreshToken,
-                ip: req.ip,
-                userAgent: req.get("user-agent"),
+                ip: req.ip || "",
+                userAgent: req.get("user-agent") || "",
             });
 
             if (!result.ok) {
@@ -103,10 +103,11 @@ export class AuthController {
                 return;
             }
 
-            const result = await this.logoutUseCase.execute({
-                userId: req.user.id,
-                refreshToken: logoutAll ? undefined : refreshToken,
-            });
+            const logoutInput: any = { userId: req.user.id };
+            if (!logoutAll && refreshToken) {
+                logoutInput.refreshToken = refreshToken;
+            }
+            const result = await this.logoutUseCase.execute(logoutInput);
 
             if (!result.ok) {
                 const error = result.error as AppError;
