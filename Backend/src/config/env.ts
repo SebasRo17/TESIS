@@ -9,11 +9,15 @@ function required(name: string): string {
 export const env = {
     nodeEnv: process.env.NODE_ENV || 'development', 
     port: parseInt(process.env.PORT || '3000', 10),
-    dbUrl: required('DATABASE_URL'),
+
+    // JWT configuration
     jwt: {
-        accessSecret: required('JWT_ACCESS_SECRET'),
-        refreshSecret: required('JWT_REFRESH_SECRET'),
+        accessSecret: process.env.JWT_ACCESS_SECRET || required('JWT_ACCESS_SECRET'),
+        refreshSecret: process.env.JWT_REFRESH_SECRET || required('JWT_REFRESH_SECRET'),
         accessTtl: process.env.JWT_ACCESS_TTL || '15m',
         refreshTtl: process.env.JWT_REFRESH_TTL || '7d',
     },
+
+    // Database configuration
+    dbUrl: required('DATABASE_URL')
 };

@@ -4,6 +4,12 @@ export interface AuthRepository {
     createUser(email: string, passwordHash: string): Promise<User>;
     storeRefreshToken(userId: number, refreshHash: string, ip?: string, ua?: string): Promise<void>;
     revokeRefreshToken(userId: number, refreshHash: string): Promise<void>;
+    findUserById(id: number): Promise<User | null>;
+    verifyRefreshTokenExists(
+        userId: number,
+        refreshHash: string
+    ): Promise<boolean>;
+    revokeAllRefreshTokens(userId: number): Promise<void>; // Para logoutAll
 }
 
 export interface PasswordHasher {   
@@ -20,4 +26,5 @@ export interface TokenService {
     signAccess(user: { id: number; email: string}): string;
     signRefresh(user: { id: number; email: string}): string;
     verifyRefresh(token: string): { id: number; email: string };
+    verifyAccess(token: string): { id: number; email: string };
 }

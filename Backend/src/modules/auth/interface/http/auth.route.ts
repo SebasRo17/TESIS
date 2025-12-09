@@ -1,0 +1,45 @@
+import { Router } from "express";
+import { AuthController } from "./AuthController";
+import { LoginUseCase } from "../../application/LoginUseCase";
+import { RefreshTokenUseCase } from "../../application/RefreshTokenUseCase";
+import { LogoutUseCase } from "../../application/LogoutUseCase";
+import { PrismaAuthRepository } from "../../infrastructure/PrismaAuthRepository";
+import { BcryptPasswordHasher } from "../../infrastructure/BcryptPasswordHasher";
+import { JwtTokenService } from "../../infrastructure/JwtTokenService";
+import { createAuthMiddleware } from "./middlewares/AuthMiddleware";
+
+export function createAuthRoutes(): Router {
+    const router = Router();
+
+    //Inyeccion de dependencias
+    const repository = new PrismaAuthRepository();
+    const passwordHasher = new BcryptPasswordHasher();
+    const tokenService = new JwtTokenService();
+
+    const loginUseCase = new LoginUseCase(
+        repository, 
+        passwordHasher, 
+        tokenService
+    );
+    const refreshTokenUseCase = new RefreshTokenUseCase(
+        repository,
+        tokenService,
+        passwordHasher
+    );
+    const logoutUseCase = new LogoutUseCase(
+        repository
+    );
+    const authController = new AuthController(loginUseCase, refreshTokenUseCase, logoutUseCase);
+    
+    //Middleware de autenticacion
+    const authMiddleware = createAuthMiddleware(tokenService);
+
+    //Rutas publicas
+    router.post('/login', (req, res) => authController.login(req, res));
+    router.post('/refresh', (req, res) => authController.refreshToken(req, res));
+
+    //Rutas protegidas
+    router.post('/logout', authMiddleware, (req, res) => authController.logout(req, res));
+
+    return router;
+}
