@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { AuthController } from "./AuthController";
 import { LoginUseCase } from "../../application/LoginUseCase";
+import { RegisterUseCase } from "../../application/RegisterUseCase";
 import { RefreshTokenUseCase } from "../../application/RefreshTokenUseCase";
 import { LogoutUseCase } from "../../application/LogoutUseCase";
 import { PrismaAuthRepository } from "../../infrastructure/PrismaAuthRepository";
@@ -19,6 +20,12 @@ export function createAuthRoutes(): Router {
     const loginUseCase = new LoginUseCase(
         repository, 
         passwordHasher, 
+        tokenService
+    );
+
+    const registerUseCase = new RegisterUseCase(
+        repository,
+        passwordHasher,
         tokenService
     );
 
@@ -43,6 +50,7 @@ export function createAuthRoutes(): Router {
     const authMiddleware = createAuthMiddleware(tokenService);
 
     // Rutas públicas
+    router.post('/register', (req, res) => authController.register(req, res));
     router.post('/login', (req, res) => authController.login(req, res));
     router.post('/refresh', (req, res) => authController.refreshToken(req, res));
 
