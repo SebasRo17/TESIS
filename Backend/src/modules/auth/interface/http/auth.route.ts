@@ -1,13 +1,13 @@
 import { Router } from "express";
-import { AuthController } from "./AuthController";
-import { LoginUseCase } from "../../application/LoginUseCase";
-import { RegisterUseCase } from "../../application/RegisterUseCase";
-import { RefreshTokenUseCase } from "../../application/RefreshTokenUseCase";
-import { LogoutUseCase } from "../../application/LogoutUseCase";
-import { PrismaAuthRepository } from "../../infrastructure/PrismaAuthRepository";
+import { AuthController } from "./AuthController"; 
+import { LoginUseCase } from "../../application/LoginUseCase"; 
+import { RegisterUseCase } from "../../application/RegisterUseCase";  
+import { RefreshTokenUseCase } from "../../application/RefreshTokenUseCase";  
+import { LogoutUseCase } from "../../application/LogoutUseCase";  
+import { PrismaAuthRepository } from "../../infrastructure/PrismaAuthRepository";  
 import { BcryptPasswordHasher } from "../../infrastructure/BcryptPasswordHasher";
-import { JwtTokenService } from "../../infrastructure/JwtTokenService";
-import { createAuthMiddleware } from "./middlewares/AuthMiddleware";
+import { JwtTokenService } from "../../infrastructure/JwtTokenService";  
+import { createAuthMiddleware } from "./middlewares/AuthMiddleware";  
 
 export function createAuthRoutes(): Router {
     const router = Router();
@@ -42,6 +42,7 @@ export function createAuthRoutes(): Router {
 
     const authController = new AuthController(
         loginUseCase, 
+        registerUseCase,
         refreshTokenUseCase, 
         logoutUseCase
     );
