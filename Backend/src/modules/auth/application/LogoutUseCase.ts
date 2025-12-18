@@ -6,7 +6,7 @@ import { prisma } from "../../../infra/db/prisma";
 
 export interface LogoutInput {
     userId: number;
-    refreshToken?: string;  // Si es undefined, se asume logoutAll
+    refreshToken?: string | null;
 }
 
 export interface LogoutOutput {

@@ -6,25 +6,18 @@ import { ok, err } from "../../../utils/result";
 import { prisma } from "../../../infra/db/prisma";
 
 export interface RegisterInput {
-    // Autenticación
     email: string;
     password: string;
     confirmPassword: string;
-
-    // Perfil básico
     firstName: string;
     lastName: string;
-
-    // Perfil extendido (opcional)
-    document?: string;
-    goal?: string;
-    phone?: string;
-    birthDate?: string;
-    city?: string;
-
-    // Metadata
-    ip?: string;
-    userAgent?: string;
+    document?: string | null;
+    goal?: string | null;
+    phone?: string | null;
+    birthDate?: string | null;
+    city?: string | null;
+    ip?: string | null;
+    userAgent?: string | null;
 }
 
 export interface RegisterOutput {
@@ -114,8 +107,8 @@ export class RegisterUseCase {
             await this.authRepository.storeRefreshToken(
                 newUser.id,
                 refreshHash,
-                input.ip,
-                input.userAgent
+                input.ip ?? undefined,
+                input.userAgent ?? undefined
             );
 
             return ok({

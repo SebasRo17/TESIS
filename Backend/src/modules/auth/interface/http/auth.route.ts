@@ -4,6 +4,7 @@ import { LoginUseCase } from "../../application/LoginUseCase";
 import { RegisterUseCase } from "../../application/RegisterUseCase";  
 import { RefreshTokenUseCase } from "../../application/RefreshTokenUseCase";  
 import { LogoutUseCase } from "../../application/LogoutUseCase";  
+import { GetCurrentUserUseCase } from "../../application/GetCurrentUserUseCase";  
 import { PrismaAuthRepository } from "../../infrastructure/PrismaAuthRepository";  
 import { BcryptPasswordHasher } from "../../infrastructure/BcryptPasswordHasher";
 import { JwtTokenService } from "../../infrastructure/JwtTokenService";  
@@ -40,11 +41,16 @@ export function createAuthRoutes(): Router {
         passwordHasher
     );
 
+    const getCurrentUserUseCase = new GetCurrentUserUseCase(
+        repository
+    );
+
     const authController = new AuthController(
         loginUseCase, 
         registerUseCase,
         refreshTokenUseCase, 
-        logoutUseCase
+        logoutUseCase,
+        getCurrentUserUseCase
     );
     
     // Middleware de autenticación
@@ -56,6 +62,7 @@ export function createAuthRoutes(): Router {
     router.post('/refresh', (req, res) => authController.refreshToken(req, res));
 
     // Rutas protegidas
+    router.get('/me', authMiddleware, (req, res) => authController.me(req, res));
     router.post('/logout', authMiddleware, (req, res) => authController.logout(req, res));
 
     return router;

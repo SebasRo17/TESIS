@@ -3,6 +3,7 @@ import type { LoginUseCase } from "../../application/LoginUseCase";
 import type { RegisterUseCase } from "../../application/RegisterUseCase";
 import type { RefreshTokenUseCase } from "../../application/RefreshTokenUseCase";
 import type { LogoutUseCase } from "../../application/LogoutUseCase";
+import type { GetCurrentUserUseCase } from "../../application/GetCurrentUserUseCase";
 import type { LoginRequest } from "./dto/LoginRequest";
 import type { RegisterRequest } from "./dto/RegisterRequest";
 import type { RefreshTokenRequest } from "./dto/RefreshTokenRequest";
@@ -15,7 +16,8 @@ export class AuthController {
         private loginUseCase: LoginUseCase,
         private registerUseCase: RegisterUseCase,
         private refreshTokenUseCase: RefreshTokenUseCase,
-        private logoutUseCase: LogoutUseCase
+        private logoutUseCase: LogoutUseCase,
+        private getCurrentUserUseCase: GetCurrentUserUseCase
     ) {}
 
     async register(req: Request, res: Response): Promise<void> {
@@ -33,7 +35,7 @@ export class AuthController {
                 city,
             } = req.body as RegisterRequest;
 
-            // Validación básica en controller (validación adicional)
+            // Validación básica en controller
             if (!email || !password || !confirmPassword || !firstName || !lastName) {
                 res.status(400).json({
                     error: "Email, contraseña, nombre y apellido son requeridos",
@@ -41,20 +43,19 @@ export class AuthController {
                 return;
             }
 
-            // Ejecutar caso de uso
             const result = await this.registerUseCase.execute({
                 email,
                 password,
                 confirmPassword,
                 firstName,
                 lastName,
-                document,
-                goal,
-                phone,
-                birthDate,
-                city,
-                ip: req.ip || "",
-                userAgent: req.get("user-agent") || "",
+                document: document ?? null,
+                goal: goal ?? null,
+                phone: phone ?? null,
+                birthDate: birthDate ?? null,
+                city: city ?? null,
+                ip: req.ip ?? null,
+                userAgent: req.get("user-agent") ?? null,
             });
 
             if (!result.ok) {
@@ -155,7 +156,7 @@ export class AuthController {
 
             const result = await this.logoutUseCase.execute({
                 userId: req.user.id,
-                refreshToken: logoutAll ? undefined : refreshToken,
+                refreshToken: logoutAll ? null : refreshToken ?? null,
             });
 
             if (!result.ok) {
@@ -170,6 +171,38 @@ export class AuthController {
         } catch (error) {
             res.status(500).json({
                 error: "Error al cerrar sesión",
+            });
+        }
+    }
+
+    async me(req: AuthenticatedRequest, res: Response): Promise<void> {
+        try {
+            // Validar que el usuario esté autenticado
+            if (!req.user) {
+                res.status(401).json({
+                    error: "No autenticado",
+                });
+                return;
+            }
+
+            // Ejecutar caso de uso
+            const result = await this.getCurrentUserUseCase.execute({
+                userId: req.user.id,
+            });
+
+            if (!result.ok) {
+                const error = result.error as AppError;
+                res.status(error.status).json({
+                    error: error.message,
+                });
+                return;
+            }
+
+            res.status(200).json(result.value);
+        } catch (error) {
+            console.error("Error en me controller:", error);
+            res.status(500).json({
+                error: "Error interno del servidor",
             });
         }
     }
