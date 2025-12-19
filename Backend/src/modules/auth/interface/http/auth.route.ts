@@ -5,9 +5,12 @@ import { RegisterUseCase } from "../../application/RegisterUseCase";
 import { RefreshTokenUseCase } from "../../application/RefreshTokenUseCase";  
 import { LogoutUseCase } from "../../application/LogoutUseCase";  
 import { GetCurrentUserUseCase } from "../../application/GetCurrentUserUseCase";  
+import { RequestPasswordResetUseCase } from "../../application/RequestPasswordResetUseCase";
+import { ResetPasswordUseCase } from "../../application/ResetPasswordUseCase";
 import { PrismaAuthRepository } from "../../infrastructure/PrismaAuthRepository";  
 import { BcryptPasswordHasher } from "../../infrastructure/BcryptPasswordHasher";
 import { JwtTokenService } from "../../infrastructure/JwtTokenService";  
+import { NodemailerEmailService } from "../../infrastructure/NodemailerEmailService";
 import { createAuthMiddleware } from "./middlewares/AuthMiddleware";  
 
 export function createAuthRoutes(): Router {
@@ -17,6 +20,7 @@ export function createAuthRoutes(): Router {
     const repository = new PrismaAuthRepository();
     const passwordHasher = new BcryptPasswordHasher();
     const tokenService = new JwtTokenService();
+    const emailService = new NodemailerEmailService();
 
     const loginUseCase = new LoginUseCase(
         repository, 
@@ -45,12 +49,17 @@ export function createAuthRoutes(): Router {
         repository
     );
 
+    const requestPasswordResetUseCase = new RequestPasswordResetUseCase(repository, passwordHasher, emailService);
+    const resetPasswordUseCase = new ResetPasswordUseCase(repository, passwordHasher);
+
     const authController = new AuthController(
-        loginUseCase, 
+        loginUseCase,
         registerUseCase,
-        refreshTokenUseCase, 
+        refreshTokenUseCase,
         logoutUseCase,
-        getCurrentUserUseCase
+        getCurrentUserUseCase,
+        requestPasswordResetUseCase,
+        resetPasswordUseCase
     );
     
     // Middleware de autenticación
@@ -64,6 +73,10 @@ export function createAuthRoutes(): Router {
     // Rutas protegidas
     router.get('/me', authMiddleware, (req, res) => authController.me(req, res));
     router.post('/logout', authMiddleware, (req, res) => authController.logout(req, res));
+
+    // Endpoints de recuperación (públicos)
+    router.post('/password/forgot', (req, res) => authController.forgotPassword(req, res));
+    router.post('/password/reset', (req, res) => authController.resetPassword(req, res));
 
     return router;
 }

@@ -124,4 +124,39 @@ export class PrismaAuthRepository implements AuthRepository {
             throw new Error(`Error revocando todos los tokens: ${error}`);
         }
     }
+
+    async storePasswordReset(userId: number, tokenHash: string, expiresAt: Date, ip?: string | null, ua?: string | null): Promise<void> {
+        await prisma.password_resets.create({
+            data: {
+                user_id: userId,
+                token_hash: tokenHash,
+                expires_at: expiresAt,
+                ip: ip ?? null,
+                user_agent: ua ?? null,
+            },
+        });
+    }
+
+    async getActivePasswordResets(userId: number): Promise<Array<{ id: number; tokenHash: string; expiresAt: Date }>> {
+        const rows = await prisma.password_resets.findMany({
+            where: { user_id: userId, used_at: null, expires_at: { gt: new Date() } },
+            select: { id: true, token_hash: true, expires_at: true },
+            orderBy: { created_at: 'desc' },
+        });
+        return rows.map(r => ({ id: r.id, tokenHash: r.token_hash, expiresAt: r.expires_at }));
+    }
+
+    async markPasswordResetUsed(id: number): Promise<void> {
+        await prisma.password_resets.update({
+            where: { id },
+            data: { used_at: new Date() },
+        });
+    }
+
+    async updateUserPassword(userId: number, newPasswordHash: string): Promise<void> {
+        await prisma.user.update({
+            where: { id: userId },
+            data: { passwordHash: newPasswordHash },
+        });
+    }
 }

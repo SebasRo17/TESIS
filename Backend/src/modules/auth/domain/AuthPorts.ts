@@ -10,6 +10,10 @@ export interface AuthRepository {
         refreshHash: string
     ): Promise<boolean>;
     revokeAllRefreshTokens(userId: number): Promise<void>; // Para logoutAll
+    storePasswordReset(userId: number, tokenHash: string, expiresAt: Date, ip?: string | null, ua?: string | null): Promise<void>;
+    getActivePasswordResets(userId: number): Promise<Array<{ id: number; tokenHash: string; expiresAt: Date }>>;
+    markPasswordResetUsed(id: number): Promise<void>;
+    updateUserPassword(userId: number, newPasswordHash: string): Promise<void>;
 }
 
 export interface PasswordHasher {   
@@ -20,6 +24,10 @@ export interface PasswordHasher {
 export interface TokenPair{
     accessToken: string;
     refreshToken: string;
+}
+
+export interface EmailService {
+    sendPasswordResetEmail(params: { to: string; resetUrl: string }): Promise<void>;
 }
 
 export interface TokenService {

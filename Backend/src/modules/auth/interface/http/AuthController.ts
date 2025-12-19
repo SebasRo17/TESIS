@@ -4,10 +4,14 @@ import type { RegisterUseCase } from "../../application/RegisterUseCase";
 import type { RefreshTokenUseCase } from "../../application/RefreshTokenUseCase";
 import type { LogoutUseCase } from "../../application/LogoutUseCase";
 import type { GetCurrentUserUseCase } from "../../application/GetCurrentUserUseCase";
+import type { RequestPasswordResetUseCase } from "../../application/RequestPasswordResetUseCase";
+import type { ResetPasswordUseCase } from "../../application/ResetPasswordUseCase";
 import type { LoginRequest } from "./dto/LoginRequest";
 import type { RegisterRequest } from "./dto/RegisterRequest";
 import type { RefreshTokenRequest } from "./dto/RefreshTokenRequest";
 import type { LogoutRequest } from "./dto/LogoutRequest";
+import type { ForgotPasswordRequest } from "./dto/ForgotPasswordRequest";
+import type { ResetPasswordRequest } from "./dto/ResetPasswordRequest";
 import { AppError } from "../../../../core/errors/AppError";
 import type { AuthenticatedRequest } from "./middlewares/AuthMiddleware";
 
@@ -17,7 +21,9 @@ export class AuthController {
         private registerUseCase: RegisterUseCase,
         private refreshTokenUseCase: RefreshTokenUseCase,
         private logoutUseCase: LogoutUseCase,
-        private getCurrentUserUseCase: GetCurrentUserUseCase
+        private getCurrentUserUseCase: GetCurrentUserUseCase,
+        private requestPasswordResetUseCase: RequestPasswordResetUseCase,
+        private resetPasswordUseCase: ResetPasswordUseCase
     ) {}
 
     async register(req: Request, res: Response): Promise<void> {
@@ -204,6 +210,44 @@ export class AuthController {
             res.status(500).json({
                 error: "Error interno del servidor",
             });
+        }
+    }
+
+    async forgotPassword(req: Request, res: Response): Promise<void> {
+        try {
+            const { email } = req.body as { email?: string };
+            const result = await this.requestPasswordResetUseCase.execute({
+                email: email ?? "",
+                ip: req.ip ?? "",
+                userAgent: req.get("user-agent") ?? "",
+            });
+            if (!result.ok) {
+                const error = result.error as AppError;
+                res.status(error.status).json({ error: error.message });
+                return;
+            }
+            res.status(200).json(result.value);
+        } catch {
+            res.status(500).json({ error: "Error solicitando recuperación" });
+        }
+    }
+
+    async resetPassword(req: Request, res: Response): Promise<void> {
+        try {
+            const { userId, token, newPassword, confirmPassword } = req.body as {
+                userId: number; token: string; newPassword: string; confirmPassword: string;
+            };
+            const result = await this.resetPasswordUseCase.execute({
+                userId, token, newPassword, confirmPassword,
+            });
+            if (!result.ok) {
+                const error = result.error as AppError;
+                res.status(error.status).json({ error: error.message });
+                return;
+            }
+            res.status(200).json(result.value);
+        } catch {
+            res.status(500).json({ error: "Error en cambio de contraseña" });
         }
     }
 }
