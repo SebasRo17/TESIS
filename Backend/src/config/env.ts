@@ -23,13 +23,21 @@ export const env = {
         url: process.env.DATABASE_URL || "mysql://user:password@localhost:3306/base_tesis",
     },
 
+    // Email SMTP (OAuth2)
     mail: {
-        host: process.env.MAIL_HOST || "smtp.example.com",
+        host: process.env.MAIL_HOST || "smtp.gmail.com",
         port: parseInt(process.env.MAIL_PORT || "587", 10),
         secure: process.env.MAIL_SECURE === "true",
         user: process.env.MAIL_USER || "",
-        pass: process.env.MAIL_PASS || "",
         from: process.env.MAIL_FROM || "no-reply@example.com",
     },
+
+    // Gmail OAuth2
+    gmail: {
+        clientId: process.env.GMAIL_CLIENT_ID || "",
+        clientSecret: process.env.GMAIL_CLIENT_SECRET || "",
+        refreshToken: process.env.GMAIL_REFRESH_TOKEN || "",
+    },
+
     frontendUrl: process.env.FRONTEND_URL || "http://localhost:4200"
 };

@@ -216,18 +216,33 @@ export class AuthController {
     async forgotPassword(req: Request, res: Response): Promise<void> {
         try {
             const { email } = req.body as { email?: string };
+            
+            console.log('🔵 [ForgotPassword] Solicitud recibida:', { 
+                email, 
+                ip: req.ip, 
+                userAgent: req.get("user-agent") 
+            });
+            
             const result = await this.requestPasswordResetUseCase.execute({
                 email: email ?? "",
                 ip: req.ip ?? "",
                 userAgent: req.get("user-agent") ?? "",
             });
+            
             if (!result.ok) {
                 const error = result.error as AppError;
+                console.error('🔴 [ForgotPassword] Error del caso de uso:', {
+                    message: error.message,
+                    status: error.status
+                });
                 res.status(error.status).json({ error: error.message });
                 return;
             }
+            
+            console.log('✅ [ForgotPassword] Éxito:', result.value);
             res.status(200).json(result.value);
-        } catch {
+        } catch (error) {
+            console.error('🔴 [ForgotPassword] Excepción no capturada:', error);
             res.status(500).json({ error: "Error solicitando recuperación" });
         }
     }
