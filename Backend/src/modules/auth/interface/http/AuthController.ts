@@ -6,6 +6,7 @@ import type { LogoutUseCase } from "../../application/LogoutUseCase";
 import type { GetCurrentUserUseCase } from "../../application/GetCurrentUserUseCase";
 import type { RequestPasswordResetUseCase } from "../../application/RequestPasswordResetUseCase";
 import type { ResetPasswordUseCase } from "../../application/ResetPasswordUseCase";
+import type { VerifyEmailUseCase } from "../../application/VerifyEmailUseCase";
 import type { LoginRequest } from "./dto/LoginRequest";
 import type { RegisterRequest } from "./dto/RegisterRequest";
 import type { RefreshTokenRequest } from "./dto/RefreshTokenRequest";
@@ -23,7 +24,8 @@ export class AuthController {
         private logoutUseCase: LogoutUseCase,
         private getCurrentUserUseCase: GetCurrentUserUseCase,
         private requestPasswordResetUseCase: RequestPasswordResetUseCase,
-        private resetPasswordUseCase: ResetPasswordUseCase
+        private resetPasswordUseCase: ResetPasswordUseCase,
+        private verifyEmailUseCase: VerifyEmailUseCase
     ) {}
 
     async register(req: Request, res: Response): Promise<void> {
@@ -263,6 +265,42 @@ export class AuthController {
             res.status(200).json(result.value);
         } catch {
             res.status(500).json({ error: "Error en cambio de contraseña" });
+        }
+    }
+
+    async verifyEmail(req: Request, res: Response): Promise<void> {
+        try {
+            const { userId, uid, token } = req.query;
+
+            const idParam = (userId ?? uid) as string | undefined;
+            const tokenParam = token as string | undefined;
+
+            if (!idParam || !tokenParam) {
+                res.status(400).json({ error: "Parámetros inválidos" });
+                return;
+            }
+
+            const parsedId = Number(idParam);
+            if (Number.isNaN(parsedId) || parsedId <= 0) {
+                res.status(400).json({ error: "Parámetros inválidos" });
+                return;
+            }
+
+            const result = await this.verifyEmailUseCase.execute({
+                userId: parsedId,
+                token: tokenParam,
+            });
+
+            if (!result.ok) {
+                const error = result.error as AppError;
+                res.status(error.status).json({ error: error.message });
+                return;
+            }
+
+            res.status(200).json(result.value);
+        } catch (error) {
+            console.error("Error en verifyEmail controller:", error);
+            res.status(500).json({ error: "Error al verificar email" });
         }
     }
 }
