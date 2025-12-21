@@ -159,4 +159,44 @@ export class PrismaAuthRepository implements AuthRepository {
             data: { passwordHash: newPasswordHash },
         });
     }
+
+    async storeEmailVerificationToken(userId: number, tokenHash: string, expiresAt: Date, ip?: string | null, ua?: string | null): Promise<void> {
+        await prisma.email_verifications.create({
+            data: {
+                user_id: userId,
+                token_hash: tokenHash,
+                expires_at: expiresAt,
+                ip: ip ?? null,
+                user_agent: ua ?? null,
+            },
+        });
+    }
+
+    async getActiveEmailVerificationToken(userId: number): Promise<{ id: number; tokenHash: string; expiresAt: Date } | null> {
+        const token = await prisma.email_verifications.findFirst({
+            where: {
+                user_id: userId,
+                used_at: null,
+                expires_at: { gt: new Date() },
+            },
+            select: { id: true, token_hash: true, expires_at: true },
+            orderBy: { created_at: 'desc' },
+        });
+        
+        return token ? { id: token.id, tokenHash: token.token_hash, expiresAt: token.expires_at } : null;
+    }
+
+    async markEmailVerificationTokenUsed(id: number): Promise<void> {
+        await prisma.email_verifications.update({
+            where: { id },
+            data: { used_at: new Date() },
+        });
+    }
+
+    async setUserAsVerified(userId: number): Promise<void> {
+        await prisma.user.update({
+            where: { id: userId },
+            data: { status: 'active' },
+        });
+    }
 }

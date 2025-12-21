@@ -76,4 +76,48 @@ export class NodemailerEmailService implements EmailService {
             throw error;
         }
     }
+
+    async sendVerificationEmail(params: { to: string; verificationUrl: string }): Promise<void> {
+        try {
+            console.log('📧 [NodemailerEmailService] Enviando email de verificación:', {
+                from: env.mail.from,
+                to: params.to,
+            });
+
+            const info = await this.transporter.sendMail({
+                from: `"Smart Lab" <${env.mail.from}>`,
+                to: params.to,
+                subject: "Verifica tu email - Smart Lab",
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #333;">¡Bienvenido a Smart Lab!</h2>
+                        <p>Gracias por registrarte. Para completar tu registro, verifica tu dirección de email.</p>
+                        <p style="margin: 30px 0;">
+                            <a href="${params.verificationUrl}" 
+                               style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+                                Verificar Email
+                            </a>
+                        </p>
+                        <p style="color: #666; font-size: 14px;">
+                            Este enlace expirará en 24 horas.
+                        </p>
+                        <p style="color: #666; font-size: 14px;">
+                            Si no te registraste, ignora este mensaje.
+                        </p>
+                        <hr style="border: 1px solid #eee; margin: 30px 0;">
+                        <p style="color: #999; font-size: 12px;">
+                            Smart Lab - Sistema de Estudio Inteligente
+                        </p>
+                    </div>
+                `,
+            });
+
+            console.log('✅ [NodemailerEmailService] Email de verificación enviado:', {
+                messageId: info.messageId,
+            });
+        } catch (error) {
+            console.error('🔴 [NodemailerEmailService] Error al enviar email de verificación:', error);
+            throw error;
+        }
+    }
 }

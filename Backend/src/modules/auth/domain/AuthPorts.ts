@@ -14,6 +14,11 @@ export interface AuthRepository {
     getActivePasswordResets(userId: number): Promise<Array<{ id: number; tokenHash: string; expiresAt: Date }>>;
     markPasswordResetUsed(id: number): Promise<void>;
     updateUserPassword(userId: number, newPasswordHash: string): Promise<void>;
+    // Email verification
+    storeEmailVerificationToken(userId: number, tokenHash: string, expiresAt: Date, ip?: string | null, ua?: string | null): Promise<void>;
+    getActiveEmailVerificationToken(userId: number): Promise<{ id: number; tokenHash: string; expiresAt: Date } | null>;
+    markEmailVerificationTokenUsed(id: number): Promise<void>;
+    setUserAsVerified(userId: number): Promise<void>;
 }
 
 export interface PasswordHasher {   
@@ -28,6 +33,7 @@ export interface TokenPair{
 
 export interface EmailService {
     sendPasswordResetEmail(params: { to: string; resetUrl: string }): Promise<void>;
+    sendVerificationEmail(params: { to: string; verificationUrl: string }): Promise<void>;
 }
 
 export interface TokenService {

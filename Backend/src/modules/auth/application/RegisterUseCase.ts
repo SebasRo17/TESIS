@@ -1,4 +1,4 @@
-import type { AuthRepository, PasswordHasher, TokenService } from '../domain/AuthPorts';
+import type { AuthRepository, PasswordHasher, TokenService, EmailService } from '../domain/AuthPorts';
 import type { User } from '../../../shared/domain/User';
 import { AppError } from '../../../core/errors/AppError';
 import type { Result } from "../../../utils/result";
@@ -35,7 +35,8 @@ export class RegisterUseCase {
     constructor(
         private authRepository: AuthRepository,
         private passwordHasher: PasswordHasher,
-        private tokenService: TokenService
+        private tokenService: TokenService,
+        private emailService: EmailService
     ) {}
 
     async execute(input: RegisterInput): Promise<Result<RegisterOutput, AppError>> {
@@ -110,6 +111,34 @@ export class RegisterUseCase {
                 input.ip ?? undefined,
                 input.userAgent ?? undefined
             );
+
+            // Paso 8: Enviar email de verificación
+            console.log('📧 [RegisterUseCase] Enviando email de verificación...');
+            
+            // Usar SendVerificationEmailUseCase aquí
+            // Por ahora lo hacemos inline para mantener simplicidad
+            const crypto = await import('crypto');
+            const rawToken = crypto.randomBytes(32).toString('hex');
+            const tokenHash = await this.passwordHasher.hash(rawToken);
+            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+            await this.authRepository.storeEmailVerificationToken(
+                newUser.id,
+                tokenHash,
+                expiresAt,
+                input.ip ?? undefined,
+                input.userAgent ?? undefined
+            );
+
+            const { env } = await import('../../../config/env');
+            const verificationUrl = `${env.frontendUrl}/verify-email?uid=${newUser.id}&token=${rawToken}`;
+            
+            await this.emailService.sendVerificationEmail({
+                to: newUser.email,
+                verificationUrl,
+            });
+
+            console.log('✅ [RegisterUseCase] Email de verificación enviado');
 
             return ok({
                 user: {

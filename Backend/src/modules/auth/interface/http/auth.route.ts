@@ -7,6 +7,7 @@ import { LogoutUseCase } from "../../application/LogoutUseCase";
 import { GetCurrentUserUseCase } from "../../application/GetCurrentUserUseCase";  
 import { RequestPasswordResetUseCase } from "../../application/RequestPasswordResetUseCase";
 import { ResetPasswordUseCase } from "../../application/ResetPasswordUseCase";
+import { VerifyEmailUseCase } from "../../application/VerifyEmailUseCase";
 import { PrismaAuthRepository } from "../../infrastructure/PrismaAuthRepository";  
 import { BcryptPasswordHasher } from "../../infrastructure/BcryptPasswordHasher";
 import { JwtTokenService } from "../../infrastructure/JwtTokenService";  
@@ -31,7 +32,8 @@ export function createAuthRoutes(): Router {
     const registerUseCase = new RegisterUseCase(
         repository,
         passwordHasher,
-        tokenService
+        tokenService,
+        emailService
     );
 
     const refreshTokenUseCase = new RefreshTokenUseCase(
@@ -51,6 +53,7 @@ export function createAuthRoutes(): Router {
 
     const requestPasswordResetUseCase = new RequestPasswordResetUseCase(repository, passwordHasher, emailService);
     const resetPasswordUseCase = new ResetPasswordUseCase(repository, passwordHasher);
+    const verifyEmailUseCase = new VerifyEmailUseCase(repository, passwordHasher);
 
     const authController = new AuthController(
         loginUseCase,
@@ -59,7 +62,8 @@ export function createAuthRoutes(): Router {
         logoutUseCase,
         getCurrentUserUseCase,
         requestPasswordResetUseCase,
-        resetPasswordUseCase
+        resetPasswordUseCase,
+        verifyEmailUseCase
     );
     
     // Middleware de autenticación
@@ -77,6 +81,9 @@ export function createAuthRoutes(): Router {
     // Endpoints de recuperación (públicos)
     router.post('/password/forgot', (req, res) => authController.forgotPassword(req, res));
     router.post('/password/reset', (req, res) => authController.resetPassword(req, res));
+
+    // Endpoints de email (públicos)
+    router.get('/verify-email', (req, res) => authController.verifyEmail(req, res));
 
     return router;
 }
