@@ -7,6 +7,12 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
+.simulator-icon-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
 .simulator-icon {
   color: #3b82f6;
   margin-bottom: 0.5rem;

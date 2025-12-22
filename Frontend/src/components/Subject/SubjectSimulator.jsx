@@ -5,7 +5,9 @@ import "./SubjectSimulator.css";
 export default function SubjectSimulator() {
   return (
     <div className="simulator-container">
-      <Clock size={46} className="simulator-icon" />
+      <div className="simulator-icon-container">
+        <Clock size={46} className="simulator-icon" />
+      </div>
       <h2 className="simulator-title">Simulador de Examen</h2>
       <p className="simulator-subtitle">Practica con 3 preguntas en 10 minutos</p>
 

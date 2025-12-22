@@ -1,13 +1,21 @@
 import React, { useState } from "react";
 import { ArrowLeft, CheckCircle2, Circle, Clock } from "lucide-react";
 import { studyPlans, studyPlanTasks } from "../../data/mockData";
+import SubjectTopics from "../Subject/SubjectTopics";
+import TopicDetail from "../Topic/TopicDetail";
 import "./StudyPlanDetail.css";
 
 export default function StudyPlanDetail({ planId, onBack }) {
   const plan = studyPlans.find((p) => p.id === planId);
   const tasks = studyPlanTasks[planId] ?? [];
 
+  // Estado de tareas completadas (ya lo tenías)
   const [completed, setCompleted] = useState(() => new Set());
+
+  // NUEVO → controla qué pantalla se muestra
+  const [activeTab, setActiveTab] = useState("resumen");
+  const [view, setView] = useState("tabs"); // tabs | topicDetail
+  const [selectedTopic, setSelectedTopic] = useState(null);
 
   const toggle = (id) => {
     setCompleted((prev) => {
@@ -28,18 +36,40 @@ export default function StudyPlanDetail({ planId, onBack }) {
     );
   }
 
+  // Cálculo del progreso
   const completion = tasks.length
     ? Math.round((completed.size / tasks.length) * 100)
     : 0;
 
   const suggested = tasks.find((t) => !completed.has(t.id));
 
+  // NUEVO → cuando se hace click en un tema desde SubjectTopics
+  const openTopic = (topicId) => {
+    setSelectedTopic(topicId);
+    setView("topicDetail");
+  };
+
+  // NUEVO → volver a los tabs
+  const goBackToTabs = () => {
+    setSelectedTopic(null);
+    setView("tabs");
+  };
+
+  // SI ESTOY DENTRO DE UN TEMA → muestro TopicDetail.jsx
+  if (view === "topicDetail") {
+    return (
+      <TopicDetail topicId={selectedTopic} onBack={goBackToTabs} />
+    );
+  }
+
   return (
     <div className="planDetail-container">
+      {/* VOLVER */}
       <button className="planDetail-backBtn" onClick={onBack}>
         <ArrowLeft size={18} /> Volver
       </button>
 
+      {/* CARD PRINCIPAL */}
       <div className="planDetail-card">
         <div className="planDetail-header">
           <div>
@@ -82,39 +112,86 @@ export default function StudyPlanDetail({ planId, onBack }) {
         )}
       </div>
 
-      <div className="planDetail-tasksCard">
-        <h2 className="planDetail-tasksTitle">Tareas del plan</h2>
-        <ul className="planDetail-taskList">
-          {tasks.map((t) => {
-            const done = completed.has(t.id);
-            return (
-              <li key={t.id} className="planDetail-taskItem">
-                <button
-                  onClick={() => toggle(t.id)}
-                  className="planDetail-checkBtn"
-                >
-                  {done ? (
-                    <CheckCircle2 className="planDetail-check done" />
-                  ) : (
-                    <Circle className="planDetail-check" />
-                  )}
-                </button>
-                <div className="planDetail-taskInfo">
-                  <p className={`planDetail-taskName ${done ? "done" : ""}`}>
-                    {t.label}
-                  </p>
-                  <p className="planDetail-taskMeta">
-                    {t.type} • {t.minutes ?? 60} min{" "}
-                    <span className="planDetail-tags">
-                      {t.subjectId && `• ${t.subjectId}`}
-                    </span>
-                  </p>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      {/* TABS */}
+      {/* <div className="planDetail-tabs">
+        <button
+          className={activeTab === "resumen" ? "active" : ""}
+          onClick={() => setActiveTab("resumen")}
+        >
+          Resumen
+        </button>
+        <button
+          className={activeTab === "temas" ? "active" : ""}
+          onClick={() => setActiveTab("temas")}
+        >
+          Temas
+        </button>
+        <button
+          className={activeTab === "material" ? "active" : ""}
+          onClick={() => setActiveTab("material")}
+        >
+          Material de Estudio
+        </button>
+        <button
+          className={activeTab === "simulador" ? "active" : ""}
+          onClick={() => setActiveTab("simulador")}
+        >
+          Simulador
+        </button>
+      </div> */}
+
+      {/* CONTENIDO SEGÚN TAB */}
+      {activeTab === "resumen" && (
+        <div className="planDetail-summary">
+          <h2 className="planDetail-tasksTitle">Tareas del plan</h2>
+          <ul className="planDetail-taskList">
+            {tasks.map((t) => {
+              const done = completed.has(t.id);
+              return (
+                <li key={t.id} className="planDetail-taskItem">
+                  <button
+                    onClick={() => toggle(t.id)}
+                    className="planDetail-checkBtn"
+                  >
+                    {done ? (
+                      <CheckCircle2 className="planDetail-check done" />
+                    ) : (
+                      <Circle className="planDetail-check" />
+                    )}
+                  </button>
+                  <div className="planDetail-taskInfo">
+                    <p className={`planDetail-taskName ${done ? "done" : ""}`}>
+                      {t.label}
+                    </p>
+                    <p className="planDetail-taskMeta">
+                      {t.type} • {t.minutes ?? 60} min{" "}
+                      <span className="planDetail-tags">
+                        {t.subjectId && `• ${t.subjectId}`}
+                      </span>
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
+      {activeTab === "temas" && (
+        <SubjectTopics onOpenTopic={openTopic} />
+      )}
+
+      {activeTab === "material" && (
+        <p className="planDetail-textMuted">
+          Material de ejemplo… aquí estarán PDFs, videos, guías, etc.
+        </p>
+      )}
+
+      {activeTab === "simulador" && (
+        <p className="planDetail-textMuted">
+          Aquí se abrirá el simulador personalizado del plan.
+        </p>
+      )}
     </div>
   );
 }

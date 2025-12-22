@@ -19,9 +19,16 @@ function AppContent() {
   const [subjectId, setSubjectId] = useState("");
   const [planId, setPlanId] = useState("");
 
+  // ======= PANTALLA DE AUTENTICACIÓN =======
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center px-4 bg-slate-950">
+        {/* Burbujas de color */}
+        <div className="pointer-events-none absolute -left-32 -top-40 h-72 w-72 rounded-full bg-violet-500/40 blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 bottom-0 h-80 w-80 rounded-full bg-sky-500/40 blur-3xl" />
+        <div className="pointer-events-none absolute inset-x-10 top-10 h-40 rounded-3xl bg-gradient-to-r from-indigo-500/10 via-sky-400/10 to-purple-500/10 blur-2xl" />
+
+        {/* Aquí va el card (login o registro) */}
         {isRegister ? (
           <RegisterForm onToggleMode={() => setIsRegister(false)} />
         ) : (
@@ -31,6 +38,7 @@ function AppContent() {
     );
   }
 
+  // ======= RESTO DE LA APP (YA LOGUEADO) =======
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
@@ -59,10 +67,9 @@ function AppContent() {
         <SubjectView
           subject={{
             name: "Razonamiento Verbal",
-            description:
-              "Comprensión lectora, analogías, antónimos y sinónimos",
+            description: "Comprensión lectora, analogías, antónimos y sinónimos",
           }}
-          onBack={() => navigate("/dashboard")}
+          onBack={() => setView("dashboard")}
         />
       )}
 

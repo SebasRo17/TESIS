@@ -1,0 +1,60 @@
+.sim-wrapper {
+  max-width: 900px;
+  margin: auto;
+  padding: 20px;
+}
+
+.sim-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 20px;
+}
+
+.sim-card {
+  background: #fff;
+  padding: 25px;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.sim-card h3 {
+  margin-bottom: 20px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.sim-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sim-btn {
+  padding: 14px 18px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  font-size: 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: 0.2s;
+}
+
+.sim-btn:hover {
+  background: #eef2ff;
+}
+
+.correct {
+  background: #d1fae5 !important;
+  border-color: #10b981 !important;
+  color: #065f46;
+}
+
+.wrong {
+  background: #fee2e2 !important;
+  border-color: #dc2626 !important;
+  color: #7f1d1d;
+}
