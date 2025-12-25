@@ -1,0 +1,498 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                       Int                        @id @default(autoincrement()) @db.UnsignedInt
+  email                    String                     @unique(map: "uk_users_email") @db.VarChar(255)
+  passwordHash             String                     @map("password_hash") @db.VarChar(255)
+  status                   String                     @db.VarChar(255)
+  createdAt                DateTime                   @default(now()) @map("created_at") @db.DateTime(0)
+  sessions                 AuthSession[]
+  password_resets          password_resets[]
+  content_events           content_events[]
+  exam_attempts            exam_attempts[]
+  lesson_progress          lesson_progress[]
+  mastery_journal          mastery_journal[]
+  orchestrator_decisions   orchestrator_decisions[]
+  plans                    plans[]
+  study_rule_bindings      study_rule_bindings[]
+  user_content_assignments user_content_assignments[]
+  user_profile             user_profile?
+  user_skill_mastery       user_skill_mastery[]
+  user_topic_plan          user_topic_plan[]
+  email_verifications      email_verifications[]
+
+  @@map("users")
+}
+
+model AuthSession {
+  id               Int     @id @default(autoincrement()) @db.UnsignedInt
+  userId           Int     @map("user_id") @db.UnsignedInt
+  refreshTokenHash String  @map("refresh_token_hash") @db.VarChar(255)
+  ip               String? @db.VarChar(255)
+  userAgent        String? @map("user_agent") @db.VarChar(255)
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_auth_sessions_user")
+
+  @@index([userId], map: "idx_auth_sessions_user")
+  @@map("auth_sessions")
+}
+
+model password_resets {
+  id         Int       @id @default(autoincrement()) @db.UnsignedInt
+  user_id    Int       @db.UnsignedInt
+  token_hash String    @db.VarChar(255)
+  expires_at DateTime  @db.DateTime(0)
+  used_at    DateTime? @db.DateTime(0)
+  ip         String?   @db.VarChar(255)
+  user_agent String?   @db.VarChar(255)
+  created_at DateTime  @default(now()) @db.DateTime(0)
+
+  users User @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_pw_resets_user")
+
+  @@index([user_id], map: "idx_pw_resets_user")
+  @@map("password_resets")
+}
+
+model content_events {
+  id                 Int               @id @default(autoincrement()) @db.UnsignedInt
+  user_id            Int               @db.UnsignedInt
+  lesson_id          Int?              @db.UnsignedInt
+  content_variant_id Int?              @db.UnsignedInt
+  event_type         String            @db.VarChar(255)
+  event_value        Json?
+  lessons            lessons?          @relation(fields: [lesson_id], references: [id], map: "fk_ce_lesson")
+  users              User              @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_ce_user")
+  content_variants   content_variants? @relation(fields: [content_variant_id], references: [id], map: "fk_ce_variant")
+
+  @@index([lesson_id], map: "idx_ce_lesson")
+  @@index([user_id], map: "idx_ce_user")
+  @@index([content_variant_id], map: "idx_ce_variant")
+}
+
+model content_prereqs {
+  id                Int     @id @default(autoincrement()) @db.UnsignedInt
+  lesson_id         Int     @db.UnsignedInt
+  required_topic_id Int     @db.UnsignedInt
+  min_mastery       Decimal @db.Decimal(4, 3)
+  lessons           lessons @relation(fields: [lesson_id], references: [id], onDelete: Cascade, map: "fk_prereqs_lesson")
+  topics            topics  @relation(fields: [required_topic_id], references: [id], onDelete: Cascade, map: "fk_prereqs_required_topic")
+
+  @@index([lesson_id], map: "idx_prereqs_lesson")
+  @@index([required_topic_id], map: "idx_prereqs_required_topic")
+}
+
+model content_variants {
+  id                       Int                        @id @default(autoincrement()) @db.UnsignedInt
+  lesson_id                Int                        @db.UnsignedInt
+  modality                 String                     @db.VarChar(255)
+  difficulty_profile       String?                    @db.VarChar(255)
+  reading_level            String?                    @db.VarChar(255)
+  content_url              String?                    @db.VarChar(255)
+  body_html                String?                    @db.LongText
+  est_minutes              Int?                       @db.UnsignedInt
+  is_active                Boolean                    @default(true)
+  version                  Int                        @default(1) @db.UnsignedInt
+  content_events           content_events[]
+  lessons                  lessons                    @relation(fields: [lesson_id], references: [id], onDelete: Cascade, map: "fk_content_variants_lesson")
+  user_content_assignments user_content_assignments[]
+
+  @@index([lesson_id], map: "idx_content_variants_lesson")
+}
+
+model courses {
+  id                  Int                   @id @default(autoincrement()) @db.UnsignedInt
+  code                String                @unique(map: "uk_courses_code") @db.VarChar(255)
+  title               String                @db.VarChar(255)
+  description         String?               @db.Text
+  status              String                @db.VarChar(255)
+  lessons             lessons[]
+  study_rule_bindings study_rule_bindings[]
+  topics              topics[]
+  user_topic_plan     user_topic_plan[]
+}
+
+model exam_attempts {
+  id             Int              @id @default(autoincrement()) @db.UnsignedInt
+  user_id        Int              @db.UnsignedInt
+  exam_id        Int              @db.UnsignedInt
+  started_at     DateTime         @default(now()) @db.DateTime(0)
+  completed_at   DateTime?        @db.DateTime(0)
+  duration_sec   Int?
+  score_raw      Decimal?         @db.Decimal(6, 2)
+  score_norm     Decimal?         @db.Decimal(6, 2)
+  metadata       Json?
+  exams          exams            @relation(fields: [exam_id], references: [id], onDelete: Cascade, map: "fk_exam_attempts_exams")
+  users          User             @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_exam_attempts_users")
+  item_responses item_responses[]
+
+  @@unique([user_id, exam_id, started_at], map: "uq_exam_attempts_unique_start")
+  @@index([exam_id], map: "idx_exam_attempts_exam")
+  @@index([user_id], map: "idx_exam_attempts_user")
+}
+
+model exam_items {
+  exam_id Int     @db.UnsignedInt
+  item_id Int     @db.UnsignedInt
+  order_n Int     @db.UnsignedInt
+  weight  Decimal @default(1.00) @db.Decimal(5, 2)
+  exams   exams   @relation(fields: [exam_id], references: [id], onDelete: Cascade, map: "fk_exam_items_exams")
+  items   items   @relation(fields: [item_id], references: [id], map: "fk_exam_items_items")
+
+  @@id([exam_id, item_id])
+  @@index([item_id], map: "fk_exam_items_items")
+  @@index([exam_id, order_n], map: "idx_exam_items_order")
+}
+
+model exams {
+  id             Int             @id @default(autoincrement()) @db.UnsignedInt
+  title          String          @db.VarChar(255)
+  mode           exams_mode
+  time_limit_sec Int             @default(0) @db.UnsignedInt
+  version        Int             @default(1) @db.UnsignedInt
+  is_active      Boolean         @default(true)
+  created_at     DateTime        @default(now()) @db.DateTime(0)
+  updated_at     DateTime        @default(now()) @db.DateTime(0)
+  exam_attempts  exam_attempts[]
+  exam_items     exam_items[]
+
+  @@index([is_active], map: "idx_exams_active")
+  @@index([mode], map: "idx_exams_mode")
+}
+
+model item_responses {
+  id             Int           @id @default(autoincrement()) @db.UnsignedInt
+  attempt_id     Int           @db.UnsignedInt
+  item_id        Int           @db.UnsignedInt
+  answer         Json?
+  is_correct     Boolean?
+  time_spent_sec Int?          @db.UnsignedInt
+  hints_used     Int           @default(0) @db.UnsignedSmallInt
+  awarded_score  Decimal?      @db.Decimal(5, 2)
+  created_at     DateTime      @default(now()) @db.DateTime(0)
+  exam_attempts  exam_attempts @relation(fields: [attempt_id], references: [id], onDelete: Cascade, map: "fk_item_responses_attempts")
+  items          items         @relation(fields: [item_id], references: [id], map: "fk_item_responses_items")
+
+  @@unique([attempt_id, item_id], map: "uq_item_responses")
+  @@index([attempt_id], map: "idx_item_responses_attempt")
+  @@index([item_id], map: "idx_item_responses_item")
+}
+
+model items {
+  id             Int              @id @default(autoincrement()) @db.UnsignedInt
+  topic_id       Int              @db.UnsignedInt
+  type           items_type
+  stem           String           @db.Text
+  options        Json?
+  answer_key     Json?
+  explanation    String?          @db.Text
+  difficulty     Int              @default(3) @db.UnsignedTinyInt
+  source         String?          @db.VarChar(255)
+  version        Int              @default(1) @db.UnsignedInt
+  is_active      Boolean          @default(true)
+  created_at     DateTime         @default(now()) @db.DateTime(0)
+  updated_at     DateTime         @default(now()) @db.DateTime(0)
+  exam_items     exam_items[]
+  item_responses item_responses[]
+  topics         topics           @relation(fields: [topic_id], references: [id], map: "fk_items_topics")
+
+  @@index([is_active], map: "idx_items_active")
+  @@index([topic_id], map: "idx_items_topic")
+  @@index([type], map: "idx_items_type")
+}
+
+model lesson_progress {
+  id             Int       @id @default(autoincrement()) @db.UnsignedInt
+  user_id        Int       @db.UnsignedInt
+  lesson_id      Int       @db.UnsignedInt
+  status         String    @db.VarChar(255)
+  last_position  String?   @db.VarChar(255)
+  completed_at   DateTime? @db.DateTime(0)
+  time_spent_sec Int?      @db.UnsignedInt
+  lessons        lessons   @relation(fields: [lesson_id], references: [id], onDelete: Cascade, map: "fk_lp_lesson")
+  users          User      @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_lp_user")
+
+  @@index([lesson_id], map: "idx_lp_lesson")
+  @@index([user_id], map: "idx_lp_user")
+}
+
+model lesson_resources {
+  id          Int     @id @default(autoincrement()) @db.UnsignedInt
+  lesson_id   Int     @db.UnsignedInt
+  type        String  @db.VarChar(255)
+  url         String? @db.VarChar(255)
+  title       String  @db.VarChar(255)
+  description String? @db.Text
+  lessons     lessons @relation(fields: [lesson_id], references: [id], onDelete: Cascade, map: "fk_lesson_resources_lesson")
+
+  @@index([lesson_id], map: "idx_lesson_resources_lesson")
+}
+
+model lessons {
+  id                       Int                        @id @default(autoincrement()) @db.UnsignedInt
+  course_id                Int                        @db.UnsignedInt
+  primary_topic_id         Int?                       @db.UnsignedInt
+  title                    String                     @db.VarChar(255)
+  canonical_slug           String                     @unique(map: "uk_lessons_slug") @db.VarChar(255)
+  is_active                Boolean                    @default(true)
+  version                  Int                        @default(1) @db.UnsignedSmallInt
+  content_events           content_events[]
+  content_prereqs          content_prereqs[]
+  content_variants         content_variants[]
+  lesson_progress          lesson_progress[]
+  lesson_resources         lesson_resources[]
+  courses                  courses                    @relation(fields: [course_id], references: [id], onDelete: Cascade, map: "fk_lessons_course")
+  topics                   topics?                    @relation(fields: [primary_topic_id], references: [id], map: "fk_lessons_primary_topic")
+  user_content_assignments user_content_assignments[]
+
+  @@index([course_id], map: "idx_lessons_course")
+  @@index([primary_topic_id], map: "idx_lessons_primary_topic")
+}
+
+model mastery_journal {
+  id             Int                    @id @default(autoincrement()) @db.UnsignedInt
+  user_id        Int                    @db.UnsignedInt
+  topic_id       Int                    @db.UnsignedInt
+  source         mastery_journal_source
+  delta          Decimal                @db.Decimal(4, 3)
+  mastery_before Decimal?               @db.Decimal(4, 3)
+  mastery_after  Decimal?               @db.Decimal(4, 3)
+  evidence       Json?
+  at             DateTime               @default(now()) @db.DateTime(0)
+  topics         topics                 @relation(fields: [topic_id], references: [id], onDelete: Cascade, map: "fk_mj_topic")
+  users          User                   @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_mj_user")
+
+  @@index([at], map: "idx_mastery_journal_at")
+  @@index([topic_id], map: "idx_mastery_journal_topic")
+  @@index([user_id], map: "idx_mastery_journal_user")
+}
+
+model orchestrator_decisions {
+  id             Int                                  @id @default(autoincrement()) @db.UnsignedInt
+  user_id        Int                                  @db.UnsignedInt
+  decision_type  orchestrator_decisions_decision_type
+  input_snapshot Json
+  output         Json
+  rationale      String?                              @db.Text
+  model_version  String?                              @db.VarChar(64)
+  correlation_id String?                              @db.VarChar(128)
+  created_at     DateTime                             @default(now()) @db.DateTime(0)
+  users          User                                 @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_orq_decisions_users")
+
+  @@index([correlation_id], map: "idx_orq_decisions_corr")
+  @@index([decision_type], map: "idx_orq_decisions_type")
+  @@index([user_id], map: "idx_orq_decisions_user")
+}
+
+model plan_items {
+  id               Int                         @id @default(autoincrement()) @db.UnsignedInt
+  plan_id          Int                         @db.UnsignedInt
+  content_ref_type plan_items_content_ref_type
+  content_ref_id   Int                         @db.UnsignedInt
+  type             String                      @db.VarChar(32)
+  priority         Decimal                     @default(0.50) @db.Decimal(3, 2)
+  order_n          Int                         @db.UnsignedInt
+  due_at           DateTime?                   @db.DateTime(0)
+  metadata         Json?
+  plans            plans                       @relation(fields: [plan_id], references: [id], onDelete: Cascade, map: "fk_plan_items_plans")
+
+  @@unique([plan_id, order_n], map: "uq_plan_items_order")
+  @@index([content_ref_type, content_ref_id], map: "idx_plan_items_ref")
+}
+
+model plans {
+  id            Int          @id @default(autoincrement()) @db.UnsignedInt
+  user_id       Int          @db.UnsignedInt
+  version       Int          @default(1) @db.UnsignedInt
+  state         plans_state  @default(draft)
+  source        String       @default("orchestrator") @db.VarChar(32)
+  created_at    DateTime     @default(now()) @db.DateTime(0)
+  activated_at  DateTime?    @db.DateTime(0)
+  superseded_at DateTime?    @db.DateTime(0)
+  plan_items    plan_items[]
+  users         User         @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_plans_users")
+
+  @@unique([user_id, version], map: "uq_plans_user_version")
+  @@index([user_id, state], map: "idx_plans_user_state")
+}
+
+model study_rule_bindings {
+  id          Int         @id @default(autoincrement()) @db.UnsignedInt
+  rule_id     Int         @db.UnsignedInt
+  course_id   Int?        @db.UnsignedInt
+  topic_id    Int?        @db.UnsignedInt
+  user_id     Int?        @db.UnsignedInt
+  courses     courses?    @relation(fields: [course_id], references: [id], onDelete: Cascade, map: "fk_rule_bind_course")
+  study_rules study_rules @relation(fields: [rule_id], references: [id], onDelete: Cascade, map: "fk_rule_bind_rule")
+  topics      topics?     @relation(fields: [topic_id], references: [id], onDelete: Cascade, map: "fk_rule_bind_topic")
+  users       User?       @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_rule_bind_user")
+
+  @@unique([rule_id, course_id, topic_id, user_id], map: "uq_rule_bind")
+  @@index([course_id], map: "idx_rule_bind_course")
+  @@index([topic_id], map: "idx_rule_bind_topic")
+  @@index([user_id], map: "idx_rule_bind_user")
+}
+
+model study_rules {
+  id                  Int                   @id @default(autoincrement()) @db.UnsignedInt
+  name                String                @db.VarChar(255)
+  scope               study_rules_scope     @default(global)
+  is_active           Boolean               @default(true)
+  priority            Int                   @default(100) @db.UnsignedSmallInt
+  definition          Json
+  created_at          DateTime              @default(now()) @db.DateTime(0)
+  updated_at          DateTime              @default(now()) @db.DateTime(0)
+  study_rule_bindings study_rule_bindings[]
+
+  @@index([is_active], map: "idx_study_rules_active")
+  @@index([priority], map: "idx_study_rules_priority")
+  @@index([scope], map: "idx_study_rules_scope")
+}
+
+model topics {
+  id                  Int                   @id @default(autoincrement()) @db.UnsignedInt
+  course_id           Int                   @db.UnsignedInt
+  name                String                @db.VarChar(255)
+  description         String?               @db.Text
+  parent_topic_id     Int?                  @db.UnsignedInt
+  level               Int                   @db.UnsignedSmallInt
+  is_active           Boolean               @default(true)
+  content_prereqs     content_prereqs[]
+  items               items[]
+  lessons             lessons[]
+  mastery_journal     mastery_journal[]
+  study_rule_bindings study_rule_bindings[]
+  courses             courses               @relation(fields: [course_id], references: [id], onDelete: Cascade, map: "fk_topics_course")
+  topics              topics?               @relation("topicsTotopics", fields: [parent_topic_id], references: [id], map: "fk_topics_parent")
+  other_topics        topics[]              @relation("topicsTotopics")
+  user_skill_mastery  user_skill_mastery[]
+  user_topic_plan     user_topic_plan[]
+
+  @@index([course_id], map: "idx_topics_course")
+  @@index([parent_topic_id], map: "idx_topics_parent")
+}
+
+model user_content_assignments {
+  id                 Int              @id @default(autoincrement()) @db.UnsignedInt
+  user_id            Int              @db.UnsignedInt
+  lesson_id          Int              @db.UnsignedInt
+  content_variant_id Int              @db.UnsignedInt
+  assigned_by        String           @db.VarChar(255)
+  rationale          String?          @db.Text
+  status             String           @db.VarChar(255)
+  lessons            lessons          @relation(fields: [lesson_id], references: [id], onDelete: Cascade, map: "fk_uca_lesson")
+  users              User             @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_uca_user")
+  content_variants   content_variants @relation(fields: [content_variant_id], references: [id], onDelete: Cascade, map: "fk_uca_variant")
+
+  @@index([lesson_id], map: "idx_uca_lesson")
+  @@index([user_id], map: "idx_uca_user")
+  @@index([content_variant_id], map: "idx_uca_variant")
+}
+
+model user_profile {
+  user_id    Int       @id @db.UnsignedInt
+  first_name String    @db.VarChar(255)
+  last_name  String    @db.VarChar(255)
+  document   String?   @unique(map: "uk_user_profile_document") @db.VarChar(255)
+  goal       String?   @db.VarChar(255)
+  phone      String?   @db.VarChar(255)
+  birth_date DateTime? @db.Date
+  city       String?   @db.VarChar(255)
+  users      User      @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_user_profile_user")
+}
+
+model user_skill_mastery {
+  id           Int     @id @default(autoincrement()) @db.UnsignedInt
+  user_id      Int     @db.UnsignedInt
+  topic_id     Int     @db.UnsignedInt
+  mastery      Decimal @db.Decimal(4, 3)
+  observations Int     @default(0) @db.UnsignedInt
+  topics       topics  @relation(fields: [topic_id], references: [id], onDelete: Cascade, map: "fk_usm_topic")
+  users        User    @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_usm_user")
+
+  @@index([topic_id], map: "idx_usm_topic")
+  @@index([user_id], map: "idx_usm_user")
+}
+
+model user_topic_plan {
+  id        Int     @id @default(autoincrement()) @db.UnsignedInt
+  user_id   Int     @db.UnsignedInt
+  course_id Int     @db.UnsignedInt
+  topic_id  Int     @db.UnsignedInt
+  priority  Int     @db.UnsignedSmallInt
+  source    String  @db.VarChar(255)
+  courses   courses @relation(fields: [course_id], references: [id], onDelete: Cascade, map: "fk_utp_course")
+  topics    topics  @relation(fields: [topic_id], references: [id], onDelete: Cascade, map: "fk_utp_topic")
+  users     User    @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_utp_user")
+
+  @@index([course_id], map: "idx_utp_course")
+  @@index([topic_id], map: "idx_utp_topic")
+  @@index([user_id], map: "idx_utp_user")
+}
+
+enum exams_mode {
+  diagnostic
+  mock
+  final
+}
+
+enum items_type {
+  single_choice
+  multi_choice
+  open
+}
+
+enum orchestrator_decisions_decision_type {
+  plan
+  next
+  feedback
+}
+
+enum plan_items_content_ref_type {
+  lesson
+  variant
+  item
+  topic
+  exam
+}
+
+enum study_rules_scope {
+  global
+  course
+  topic
+  user
+}
+
+enum mastery_journal_source {
+  exam
+  response
+  manual
+  orchestrator
+}
+
+enum plans_state {
+  draft
+  active
+  superseded
+}
+
+model email_verifications {
+  id         Int       @id @default(autoincrement()) @db.UnsignedInt
+  user_id    Int       @db.UnsignedInt
+  token_hash String    @db.VarChar(255)
+  expires_at DateTime  @db.DateTime(0)
+  used_at    DateTime? @db.DateTime(0)
+  ip         String?   @db.VarChar(255)
+  user_agent String?   @db.VarChar(255)
+  created_at DateTime  @default(now()) @db.DateTime(0)
+
+  users User @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "fk_email_verif_user")
+
+  @@index([user_id], map: "idx_email_verif_user")
+  @@map("email_verifications")
+}
