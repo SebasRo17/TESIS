@@ -270,12 +270,11 @@ export class AuthController {
 
     async verifyEmail(req: Request, res: Response): Promise<void> {
         try {
-            const { userId, uid, token } = req.query;
+            res.set('Cache-Control', 'no-store');
 
-            const idParam = (userId ?? uid) as string | undefined;
-            const tokenParam = token as string | undefined;
-
-            if (!idParam || !tokenParam) {
+            const { userId, uid, token } = req.query as { userId?: string; uid?: string; token?: string };
+            const idParam = userId ?? uid;
+            if (!idParam || !token) {
                 res.status(400).json({ error: "Parámetros inválidos" });
                 return;
             }
@@ -288,7 +287,7 @@ export class AuthController {
 
             const result = await this.verifyEmailUseCase.execute({
                 userId: parsedId,
-                token: tokenParam,
+                token,
             });
 
             if (!result.ok) {
@@ -299,7 +298,6 @@ export class AuthController {
 
             res.status(200).json(result.value);
         } catch (error) {
-            console.error("Error en verifyEmail controller:", error);
             res.status(500).json({ error: "Error al verificar email" });
         }
     }
