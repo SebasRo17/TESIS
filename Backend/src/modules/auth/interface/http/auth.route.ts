@@ -4,7 +4,6 @@ import { LoginUseCase } from "../../application/LoginUseCase";
 import { RegisterUseCase } from "../../application/RegisterUseCase";  
 import { RefreshTokenUseCase } from "../../application/RefreshTokenUseCase";  
 import { LogoutUseCase } from "../../application/LogoutUseCase";  
-import { GetCurrentUserUseCase } from "../../application/GetCurrentUserUseCase";  
 import { RequestPasswordResetUseCase } from "../../application/RequestPasswordResetUseCase";
 import { ResetPasswordUseCase } from "../../application/ResetPasswordUseCase";
 import { VerifyEmailUseCase } from "../../application/VerifyEmailUseCase";
@@ -47,10 +46,6 @@ export function createAuthRoutes(): Router {
         passwordHasher
     );
 
-    const getCurrentUserUseCase = new GetCurrentUserUseCase(
-        repository
-    );
-
     const requestPasswordResetUseCase = new RequestPasswordResetUseCase(repository, passwordHasher, emailService);
     const resetPasswordUseCase = new ResetPasswordUseCase(repository, passwordHasher);
     const verifyEmailUseCase = new VerifyEmailUseCase(repository, passwordHasher);
@@ -60,7 +55,6 @@ export function createAuthRoutes(): Router {
         registerUseCase,
         refreshTokenUseCase,
         logoutUseCase,
-        getCurrentUserUseCase,
         requestPasswordResetUseCase,
         resetPasswordUseCase,
         verifyEmailUseCase
@@ -75,7 +69,6 @@ export function createAuthRoutes(): Router {
     router.post('/refresh', (req, res) => authController.refreshToken(req, res));
 
     // Rutas protegidas
-    router.get('/me', authMiddleware, (req, res) => authController.me(req, res));
     router.post('/logout', authMiddleware, (req, res) => authController.logout(req, res));
 
     // Endpoints de recuperación (públicos)

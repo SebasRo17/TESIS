@@ -3,7 +3,6 @@ import type { LoginUseCase } from "../../application/LoginUseCase";
 import type { RegisterUseCase } from "../../application/RegisterUseCase";
 import type { RefreshTokenUseCase } from "../../application/RefreshTokenUseCase";
 import type { LogoutUseCase } from "../../application/LogoutUseCase";
-import type { GetCurrentUserUseCase } from "../../application/GetCurrentUserUseCase";
 import type { RequestPasswordResetUseCase } from "../../application/RequestPasswordResetUseCase";
 import type { ResetPasswordUseCase } from "../../application/ResetPasswordUseCase";
 import type { VerifyEmailUseCase } from "../../application/VerifyEmailUseCase";
@@ -22,7 +21,6 @@ export class AuthController {
         private registerUseCase: RegisterUseCase,
         private refreshTokenUseCase: RefreshTokenUseCase,
         private logoutUseCase: LogoutUseCase,
-        private getCurrentUserUseCase: GetCurrentUserUseCase,
         private requestPasswordResetUseCase: RequestPasswordResetUseCase,
         private resetPasswordUseCase: ResetPasswordUseCase,
         private verifyEmailUseCase: VerifyEmailUseCase
@@ -179,38 +177,6 @@ export class AuthController {
         } catch (error) {
             res.status(500).json({
                 error: "Error al cerrar sesión",
-            });
-        }
-    }
-
-    async me(req: AuthenticatedRequest, res: Response): Promise<void> {
-        try {
-            // Validar que el usuario esté autenticado
-            if (!req.user) {
-                res.status(401).json({
-                    error: "No autenticado",
-                });
-                return;
-            }
-
-            // Ejecutar caso de uso
-            const result = await this.getCurrentUserUseCase.execute({
-                userId: req.user.id,
-            });
-
-            if (!result.ok) {
-                const error = result.error as AppError;
-                res.status(error.status).json({
-                    error: error.message,
-                });
-                return;
-            }
-
-            res.status(200).json(result.value);
-        } catch (error) {
-            console.error("Error en me controller:", error);
-            res.status(500).json({
-                error: "Error interno del servidor",
             });
         }
     }
