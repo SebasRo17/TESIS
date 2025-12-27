@@ -1,0 +1,321 @@
+import swaggerJsdoc from "swagger-jsdoc";
+
+const options = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "TESIS API Documentation",
+      version: "1.0.0",
+      description: "API REST para plataforma de educación - Prueba endpoints directamente aquí",
+      contact: {
+        name: "API Support",
+        email: "support@tesis.com",
+      },
+    },
+    servers: [
+      {
+        url: "http://localhost:3000/api",
+        description: "Servidor de desarrollo",
+      },
+      {
+        url: "https://api.tesis.com/api",
+        description: "Servidor de producción",
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "JWT",
+          description: "JWT token para autenticación",
+        },
+      },
+      schemas: {
+        LoginRequest: {
+          type: "object",
+          required: ["email", "password"],
+          properties: {
+            email: { type: "string", format: "email", example: "usuario@example.com" },
+            password: { type: "string", format: "password", example: "Password123!" },
+          },
+        },
+        LoginResponse: {
+          type: "object",
+          properties: {
+            user: { type: "object", properties: { id: { type: "number" }, email: { type: "string" } } },
+            accessToken: { type: "string" },
+            refreshToken: { type: "string" },
+          },
+        },
+        RegisterRequest: {
+          type: "object",
+          required: ["email", "password", "confirmPassword", "firstName", "lastName"],
+          properties: {
+            email: { type: "string", format: "email", example: "nuevo@example.com" },
+            password: { type: "string", format: "password", example: "Password123!" },
+            confirmPassword: { type: "string", format: "password" },
+            firstName: { type: "string", example: "Juan" },
+            lastName: { type: "string", example: "Pérez" },
+            document: { type: "string" },
+            goal: { type: "string" },
+            phone: { type: "string" },
+            birthDate: { type: "string", format: "date" },
+            city: { type: "string" },
+          },
+        },
+        RegisterResponse: {
+          type: "object",
+          properties: {
+            user: { type: "object" },
+            accessToken: { type: "string" },
+            refreshToken: { type: "string" },
+            message: { type: "string" },
+          },
+        },
+        RefreshTokenRequest: {
+          type: "object",
+          required: ["refreshToken"],
+          properties: { refreshToken: { type: "string" } },
+        },
+        RefreshTokenResponse: {
+          type: "object",
+          properties: { accessToken: { type: "string" }, refreshToken: { type: "string" } },
+        },
+        ForgotPasswordRequest: {
+          type: "object",
+          required: ["email"],
+          properties: { email: { type: "string", format: "email" } },
+        },
+        ResetPasswordRequest: {
+          type: "object",
+          required: ["token", "newPassword", "confirmPassword"],
+          properties: {
+            token: { type: "string" },
+            newPassword: { type: "string", format: "password" },
+            confirmPassword: { type: "string", format: "password" },
+          },
+        },
+        VerifyEmailRequest: {
+          type: "object",
+          properties: { token: { type: "string" } },
+        },
+        UserProfile: {
+          type: "object",
+          properties: {
+            id: { type: "number" },
+            email: { type: "string" },
+            firstName: { type: "string" },
+            lastName: { type: "string" },
+            document: { type: "string" },
+            goal: { type: "string" },
+            phone: { type: "string" },
+            birthDate: { type: "string", format: "date" },
+            city: { type: "string" },
+            emailVerified: { type: "boolean" },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
+        UpdateMyProfileRequest: {
+          type: "object",
+          properties: {
+            firstName: { type: "string" },
+            lastName: { type: "string" },
+            document: { type: "string" },
+            goal: { type: "string" },
+            phone: { type: "string" },
+            birthDate: { type: "string", format: "date" },
+            city: { type: "string" },
+          },
+        },
+        ChangePasswordRequest: {
+          type: "object",
+          required: ["currentPassword", "newPassword", "confirmPassword"],
+          properties: {
+            currentPassword: { type: "string", format: "password" },
+            newPassword: { type: "string", format: "password" },
+            confirmPassword: { type: "string", format: "password" },
+          },
+        },
+        ErrorResponse: {
+          type: "object",
+          properties: { error: { type: "string" } },
+        },
+        SuccessMessage: {
+          type: "object",
+          properties: { message: { type: "string" } },
+        },
+      },
+    },
+    paths: {
+      "/auth/register": {
+        post: {
+          tags: ["Auth"],
+          summary: "Registrar nuevo usuario",
+          description: "Crea una nueva cuenta de usuario",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/RegisterRequest" } } },
+          },
+          responses: {
+            "201": {
+              description: "Usuario registrado exitosamente",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/RegisterResponse" } } },
+            },
+            "400": { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+            "409": { description: "El email ya está registrado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          },
+        },
+      },
+      "/auth/login": {
+        post: {
+          tags: ["Auth"],
+          summary: "Iniciar sesión",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/LoginRequest" } } },
+          },
+          responses: {
+            "200": {
+              description: "Login exitoso",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/LoginResponse" } } },
+            },
+            "401": { description: "Credenciales inválidas", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          },
+        },
+      },
+      "/auth/refresh": {
+        post: {
+          tags: ["Auth"],
+          summary: "Renovar token",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/RefreshTokenRequest" } } },
+          },
+          responses: {
+            "200": {
+              description: "Token renovado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/RefreshTokenResponse" } } },
+            },
+            "401": { description: "Token inválido", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          },
+        },
+      },
+      "/auth/logout": {
+        post: {
+          tags: ["Auth"],
+          summary: "Cerrar sesión",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "Sesión cerrada",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/SuccessMessage" } } },
+            },
+            "401": { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          },
+        },
+      },
+      "/auth/password/forgot": {
+        post: {
+          tags: ["Auth"],
+          summary: "Solicitar recuperación de contraseña",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ForgotPasswordRequest" } } },
+          },
+          responses: {
+            "200": {
+              description: "Email de recuperación enviado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/SuccessMessage" } } },
+            },
+            "404": { description: "Email no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          },
+        },
+      },
+      "/auth/password/reset": {
+        post: {
+          tags: ["Auth"],
+          summary: "Restablecer contraseña",
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ResetPasswordRequest" } } },
+          },
+          responses: {
+            "200": {
+              description: "Contraseña restablecida",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/SuccessMessage" } } },
+            },
+            "401": { description: "Token inválido", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          },
+        },
+      },
+      "/auth/verify-email": {
+        get: {
+          tags: ["Auth"],
+          summary: "Verificar email",
+          parameters: [
+            { in: "query", name: "token", schema: { type: "string" }, example: "abc123def456" },
+          ],
+          responses: {
+            "200": {
+              description: "Email verificado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/SuccessMessage" } } },
+            },
+            "401": { description: "Token inválido", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          },
+        },
+      },
+      "/users/me": {
+        get: {
+          tags: ["Users"],
+          summary: "Obtener perfil",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "Perfil obtenido",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/UserProfile" } } },
+            },
+            "401": { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          },
+        },
+        patch: {
+          tags: ["Users"],
+          summary: "Actualizar perfil",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateMyProfileRequest" } } },
+          },
+          responses: {
+            "200": {
+              description: "Perfil actualizado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/SuccessMessage" } } },
+            },
+            "401": { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          },
+        },
+      },
+      "/users/me/password": {
+        patch: {
+          tags: ["Users"],
+          summary: "Cambiar contraseña",
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ChangePasswordRequest" } } },
+          },
+          responses: {
+            "200": {
+              description: "Contraseña cambiada",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/SuccessMessage" } } },
+            },
+            "401": { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          },
+        },
+      },
+    },
+  },
+  apis: [],
+};
+
+export const swaggerSpec = swaggerJsdoc(options);

@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
-import { createRouter } from './app/router'; 
+import swaggerUi from 'swagger-ui-express';
+import { createRouter } from './app/router';
+import { swaggerSpec } from './docs/swagger';
 
 export function createApp() {
   const app = express();
@@ -9,6 +11,14 @@ export function createApp() {
   app.use(cors());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+
+  // Documentación Swagger
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      displayRequestDuration: true,
+    },
+  }));
 
   // Rutas
   app.use('/api', createRouter());
