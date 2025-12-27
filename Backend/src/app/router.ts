@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { createAuthRoutes } from '../modules/auth/interface/http/auth.route';
 import { createUsersRoutes } from '../modules/users/interface/http/user.route';
+import { createCoursesRoutes } from '../modules/courses/interface/http/courses.route';
 
 export function createRouter() {
     const router = Router();
@@ -10,6 +11,9 @@ export function createRouter() {
 
     // Rutas de Users
     router.use('/users', createUsersRoutes());
+
+    // Rutas de Courses
+    router.use('/courses', createCoursesRoutes());
 
     return router;
 }
