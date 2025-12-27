@@ -62,21 +62,31 @@ export class UpdateMyProfileUseCase {
                 updateData
             );
 
+            // Construir respuesta
+            const profileResponse: UpdateMyProfileOutput['profile'] = {
+                firstName: updatedProfile.first_name,
+                lastName: updatedProfile.last_name,
+            };
+
+            if (updatedProfile.document !== null) {
+                profileResponse.document = updatedProfile.document;
+            }
+            if (updatedProfile.goal !== null) {
+                profileResponse.goal = updatedProfile.goal;
+            }
+            if (updatedProfile.phone !== null) {
+                profileResponse.phone = updatedProfile.phone;
+            }
+            if (updatedProfile.city !== null) {
+                profileResponse.city = updatedProfile.city;
+            }
+            if (updatedProfile.birth_date !== null) {
+                profileResponse.birthDate = updatedProfile.birth_date;
+            }
+
             return ok({
                 message: "Perfil actualizado correctamente",
-                profile: {
-                    firstName: updatedProfile.first_name,
-                    lastName: updatedProfile.last_name,
-                    document: updatedProfile.document ?? null,
-                    goal: updatedProfile.goal ?? null,
-                    phone: updatedProfile.phone ?? null,
-                    birthDate: updatedProfile.birth_date 
-                        ? (updatedProfile.birth_date instanceof Date 
-                            ? updatedProfile.birth_date.toISOString().split('T')[0]
-                            : String(updatedProfile.birth_date).split('T')[0])
-                        : null,
-                    city: updatedProfile.city ?? null,
-                },
+                profile: profileResponse,
             });
         } catch (error) {
             console.error("UpdateMyProfileUseCase error:", error);

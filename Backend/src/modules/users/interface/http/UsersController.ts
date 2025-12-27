@@ -1,11 +1,11 @@
-import type { Response } from "express";
-import type { GetMyProfileUseCase } from "../application/GetMyProfileUseCase";
-import type { UpdateMyProfileUseCase } from "../application/UpdateMyProfileUseCase";
-import type { ChangePasswordUseCase } from "../application/ChangePasswordUseCase";
-import type { UpdateMyProfileRequest } from "./http/dto/UpdateMyProfileRequest";
-import type { ChangePasswordRequest } from "./http/dto/ChangePasswordRequest";
-import { AppError } from "../../../core/errors/AppError";
-import type { AuthenticatedRequest } from "../../auth/interface/http/middlewares/AuthMiddleware";
+import type { Request, Response } from "express";
+import type { GetMyProfileUseCase } from "../../application/GetMyProfileUseCase";
+import type { UpdateMyProfileUseCase } from "../../application/UpdateMyProfileUseCase";
+import type { ChangePasswordUseCase } from "../../application/ChangePasswordUseCase";
+import type { UpdateMyProfileRequest } from "./dto/UpdateMyProfileRequest";
+import type { ChangePasswordRequest } from "./dto/ChangePasswordRequest";
+import { AppError } from "../../../../core/errors/AppError";
+import type { AuthenticatedRequest } from "../../../auth/interface/http/middlewares/AuthMiddleware";
 
 export class UsersController {
     constructor(
@@ -47,16 +47,19 @@ export class UsersController {
 
             const body = req.body as UpdateMyProfileRequest;
 
-            const result = await this.updateMyProfileUseCase.execute({
+            const input: Record<string, any> = {
                 userId: req.user.id,
-                firstName: body.firstName,
-                lastName: body.lastName,
-                document: body.document ?? undefined,
-                goal: body.goal ?? undefined,
-                phone: body.phone ?? undefined,
-                birthDate: body.birthDate ?? undefined,
-                city: body.city ?? undefined,
-            });
+            };
+
+            if (body.firstName !== undefined) input.firstName = body.firstName;
+            if (body.lastName !== undefined) input.lastName = body.lastName;
+            if (body.document !== undefined) input.document = body.document;
+            if (body.goal !== undefined) input.goal = body.goal;
+            if (body.phone !== undefined) input.phone = body.phone;
+            if (body.birthDate !== undefined) input.birthDate = body.birthDate;
+            if (body.city !== undefined) input.city = body.city;
+
+            const result = await this.updateMyProfileUseCase.execute(input as any);
 
             if (!result.ok) {
                 const error = result.error as AppError;

@@ -1,7 +1,7 @@
 export interface GetMyProfileResponse {
     id: number;
     email: string;
-    status: 'active' | 'inactive' | 'pending' | 'blocked';
+    status: 'active' | 'inactive' | 'pending';
     profile?: {
         firstName: string;
         lastName: string;

@@ -9,7 +9,7 @@ export interface GetMyProfileInput {
 export interface GetMyProfileOutput {
     id: number;
     email: string;
-    status: 'active' | 'inactive' | 'pending' | 'blocked';
+    status: 'active' | 'inactive' | 'pending';
     profile?: {
         firstName: string;
         lastName: string;
@@ -46,15 +46,18 @@ export class GetMyProfileUseCase {
             };
 
             if (profile) {
-                response.profile = {
+                const profileObj: GetMyProfileOutput['profile'] = {
                     firstName: profile.first_name,
                     lastName: profile.last_name,
-                    document: profile.document ?? null,
-                    goal: profile.goal ?? null,
-                    phone: profile.phone ?? null,
-                    birthDate: profile.birth_date ? profile.birth_date.split('T')[0] : null,
-                    city: profile.city ?? null,
                 };
+
+                if (profile.document !== null) profileObj.document = profile.document;
+                if (profile.goal !== null) profileObj.goal = profile.goal;
+                if (profile.phone !== null) profileObj.phone = profile.phone;
+                if (profile.birth_date !== null) profileObj.birthDate = profile.birth_date;
+                if (profile.city !== null) profileObj.city = profile.city;
+
+                response.profile = profileObj;
             }
 
             return ok(response);

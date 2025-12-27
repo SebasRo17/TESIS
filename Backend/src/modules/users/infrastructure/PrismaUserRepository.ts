@@ -1,9 +1,8 @@
 import type { UserRepository, UserProfile } from "../domain/UserPorts";
-import type { User } from "../../../shared/domain/User";
 import { prisma } from "../../../infra/db/prisma";
 
 export class PrismaUserRepository implements UserRepository {
-    async findUserById(id: number): Promise<User | null> {
+    async findUserById(id: number): Promise<any | null> {
         try {
             const user = await prisma.user.findUnique({
                 where: { id },
@@ -15,12 +14,26 @@ export class PrismaUserRepository implements UserRepository {
                 id: user.id,
                 email: user.email,
                 password_hash: user.passwordHash,
-                status: user.status as "active" | "inactive" | "pending",
+                status: user.status,
                 created_at: user.createdAt,
             };
         } catch (error) {
             throw new Error(`Error buscando usuario por ID: ${error}`);
         }
+    }
+
+    private formatBirthDate(date: Date | null | undefined): string | null {
+        if (!date) return null;
+        
+        if (date instanceof Date) {
+            const isoString = date.toISOString();
+            const parts = isoString.split('T');
+            return parts[0] || null;
+        }
+        
+        const dateStr = String(date);
+        const parts = dateStr.split('T');
+        return parts[0] || null;
     }
 
     async getUserProfile(userId: number): Promise<UserProfile | null> {
@@ -31,24 +44,27 @@ export class PrismaUserRepository implements UserRepository {
 
             if (!profile) return null;
 
-            return {
+            const result: UserProfile = {
                 user_id: profile.user_id,
                 first_name: profile.first_name,
                 last_name: profile.last_name,
                 document: profile.document ?? null,
                 goal: profile.goal ?? null,
                 phone: profile.phone ?? null,
-                birth_date: profile.birth_date 
-                    ? profile.birth_date.toISOString().split('T')[0] 
-                    : null,
+                birth_date: this.formatBirthDate(profile.birth_date),
                 city: profile.city ?? null,
             };
+
+            return result;
         } catch (error) {
             throw new Error(`Error obteniendo perfil: ${error}`);
         }
     }
 
-    async updateUserProfile(userId: number, profile: Partial<UserProfile>): Promise<UserProfile> {
+    async updateUserProfile(
+        userId: number,
+        profile: Partial<UserProfile>
+    ): Promise<UserProfile> {
         try {
             const updateData: Record<string, any> = {};
 
@@ -59,8 +75,8 @@ export class PrismaUserRepository implements UserRepository {
             if (profile.phone !== undefined) updateData.phone = profile.phone;
             if (profile.city !== undefined) updateData.city = profile.city;
             if (profile.birth_date !== undefined) {
-                updateData.birth_date = profile.birth_date 
-                    ? new Date(profile.birth_date) 
+                updateData.birth_date = profile.birth_date
+                    ? new Date(profile.birth_date)
                     : null;
             }
 
@@ -69,18 +85,18 @@ export class PrismaUserRepository implements UserRepository {
                 data: updateData,
             });
 
-            return {
+            const result: UserProfile = {
                 user_id: updated.user_id,
                 first_name: updated.first_name,
                 last_name: updated.last_name,
                 document: updated.document ?? null,
                 goal: updated.goal ?? null,
                 phone: updated.phone ?? null,
-                birth_date: updated.birth_date 
-                    ? updated.birth_date.toISOString().split('T')[0] 
-                    : null,
+                birth_date: this.formatBirthDate(updated.birth_date),
                 city: updated.city ?? null,
             };
+
+            return result;
         } catch (error) {
             throw new Error(`Error actualizando perfil: ${error}`);
         }
@@ -97,7 +113,10 @@ export class PrismaUserRepository implements UserRepository {
         }
     }
 
-    async updateUserStatus(userId: number, status: string): Promise<void> {
+    async updateUserStatus(
+        userId: number,
+        status: 'active' | 'inactive' | 'pending'
+    ): Promise<void> {
         try {
             await prisma.user.update({
                 where: { id: userId },
@@ -105,20 +124,6 @@ export class PrismaUserRepository implements UserRepository {
             });
         } catch (error) {
             throw new Error(`Error actualizando estado: ${error}`);
-        }
-    }
-
-    async getUserStatus(userId: number): Promise<'active' | 'inactive' | 'pending' | 'blocked'> {
-        try {
-            const user = await prisma.user.findUnique({
-                where: { id: userId },
-                select: { status: true },
-            });
-
-            if (!user) throw new Error("Usuario no encontrado");
-            return user.status as any;
-        } catch (error) {
-            throw new Error(`Error obteniendo estado: ${error}`);
         }
     }
 }

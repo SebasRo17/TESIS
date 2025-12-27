@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { UsersController } from "./UsersController";
-import { GetMyProfileUseCase } from "../application/GetMyProfileUseCase";
-import { UpdateMyProfileUseCase } from "../application/UpdateMyProfileUseCase";
-import { ChangePasswordUseCase } from "../application/ChangePasswordUseCase";
-import { PrismaUserRepository } from "../infrastructure/PrismaUserRepository";
-import { BcryptPasswordHasher } from "../../auth/infrastructure/BcryptPasswordHasher";
-import { createAuthMiddleware } from "../../auth/interface/http/middlewares/AuthMiddleware";
-import { JwtTokenService } from "../../auth/infrastructure/JwtTokenService";
+import { GetMyProfileUseCase } from "../../application/GetMyProfileUseCase";
+import { UpdateMyProfileUseCase } from "../../application/UpdateMyProfileUseCase";
+import { ChangePasswordUseCase } from "../../application/ChangePasswordUseCase";
+import { PrismaUserRepository } from "../../infrastructure/PrismaUserRepository";
+import { BcryptPasswordHasher } from "../../../auth/infrastructure/BcryptPasswordHasher";
+import { createAuthMiddleware } from "../../../auth/interface/http/middlewares/AuthMiddleware";
+import { JwtTokenService } from "../../../auth/infrastructure/JwtTokenService";
 
 export function createUsersRoutes(): Router {
     const router = Router();
