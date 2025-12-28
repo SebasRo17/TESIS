@@ -145,6 +145,16 @@ const options = {
           type: "object",
           properties: { message: { type: "string" } },
         },
+        CourseResponse: {
+          type: "object",
+          properties: {
+            id: { type: "number", example: 1 },
+            code: { type: "string", example: "calculo" },
+            title: { type: "string", example: "Cálculo Diferencial e Integral" },
+            description: { type: "string", nullable: true, example: "Curso de matemáticas para preparación EPN" },
+            status: { type: "string", example: "active" },
+          },
+        },
       },
     },
     paths: {
@@ -310,6 +320,96 @@ const options = {
               content: { "application/json": { schema: { $ref: "#/components/schemas/SuccessMessage" } } },
             },
             "401": { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          },
+        },
+      },
+      "/courses": {
+        get: {
+          tags: ["Courses"],
+          summary: "Obtener lista de cursos",
+          description: "Retorna todos los cursos activos disponibles en la plataforma",
+          responses: {
+            "200": {
+              description: "Lista de cursos obtenida exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/CourseResponse" },
+                  },
+                },
+              },
+            },
+            "500": {
+              description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/courses/{id}": {
+        get: {
+          tags: ["Courses"],
+          summary: "Obtener curso por ID",
+          description: "Retorna el detalle de un curso específico por su ID",
+          parameters: [
+            {
+              in: "path",
+              name: "id",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID del curso",
+              example: 1,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Curso encontrado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/CourseResponse" } } },
+            },
+            "404": {
+              description: "Curso no encontrado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "500": {
+              description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/courses/slug/{slug}": {
+        get: {
+          tags: ["Courses"],
+          summary: "Obtener curso por slug",
+          description: "Retorna el detalle de un curso específico por su código/slug",
+          parameters: [
+            {
+              in: "path",
+              name: "slug",
+              required: true,
+              schema: { type: "string" },
+              description: "Código o slug del curso",
+              example: "calculo",
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Curso encontrado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/CourseResponse" } } },
+            },
+            "400": {
+              description: "Slug es requerido",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "404": {
+              description: "Curso no encontrado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "500": {
+              description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
           },
         },
       },
