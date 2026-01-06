@@ -155,6 +155,59 @@ const options = {
             status: { type: "string", example: "active" },
           },
         },
+        TopicResponse: {
+          type: "object",
+          properties: {
+            id: { type: "number", example: 1 },
+            courseId: { type: "number", example: 1 },
+            name: { type: "string", example: "Álgebra" },
+            description: { type: "string", nullable: true, example: "Fundamentos de álgebra" },
+            parentTopicId: { type: "number", nullable: true, example: null },
+            level: { type: "number", example: 0 },
+          },
+        },
+        TopicTreeResponse: {
+          type: "object",
+          properties: {
+            id: { type: "number", example: 1 },
+            courseId: { type: "number", example: 1 },
+            name: { type: "string", example: "Álgebra" },
+            description: { type: "string", nullable: true },
+            parentTopicId: { type: "number", nullable: true },
+            level: { type: "number", example: 0 },
+            children: {
+              type: "array",
+              items: { $ref: "#/components/schemas/TopicTreeResponse" },
+            },
+          },
+        },
+        BreadcrumbItem: {
+          type: "object",
+          properties: {
+            id: { type: "number", example: 1 },
+            name: { type: "string", example: "Álgebra" },
+            level: { type: "number", example: 0 },
+          },
+        },
+        TopicDetailResponse: {
+          type: "object",
+          properties: {
+            id: { type: "number", example: 1 },
+            courseId: { type: "number", example: 1 },
+            name: { type: "string", example: "Álgebra" },
+            description: { type: "string", nullable: true },
+            parentTopicId: { type: "number", nullable: true },
+            level: { type: "number", example: 0 },
+            breadcrumb: {
+              type: "array",
+              items: { $ref: "#/components/schemas/BreadcrumbItem" },
+            },
+            children: {
+              type: "array",
+              items: { $ref: "#/components/schemas/TopicResponse" },
+            },
+          },
+        },
       },
     },
     paths: {
@@ -404,6 +457,162 @@ const options = {
             },
             "404": {
               description: "Curso no encontrado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "500": {
+              description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/courses/{courseId}/topics/tree": {
+        get: {
+          tags: ["Topics"],
+          summary: "Obtener árbol jerárquico de topics",
+          description: "Retorna todos los topics de un curso en estructura jerárquica (parent → children)",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "courseId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID del curso",
+              example: 1,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Árbol de topics obtenido exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/TopicTreeResponse" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "CourseId inválido",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "404": {
+              description: "Curso no encontrado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "500": {
+              description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/courses/{courseId}/topics": {
+        get: {
+          tags: ["Topics"],
+          summary: "Obtener lista plana de topics",
+          description: "Retorna todos los topics de un curso en lista plana, ordenados por level, parent y nombre",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "courseId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID del curso",
+              example: 1,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Lista de topics obtenida exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: {
+                        type: "array",
+                        items: { $ref: "#/components/schemas/TopicResponse" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "CourseId inválido",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "404": {
+              description: "Curso no encontrado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "500": {
+              description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/topics/{topicId}": {
+        get: {
+          tags: ["Topics"],
+          summary: "Obtener detalle de un topic",
+          description: "Retorna el detalle completo de un topic incluyendo su breadcrumb (ruta desde la raíz) e hijos inmediatos",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "topicId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID del topic",
+              example: 2,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Detalle del topic obtenido exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: { $ref: "#/components/schemas/TopicDetailResponse" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "TopicId inválido",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "404": {
+              description: "Topic no encontrado",
               content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
             },
             "500": {
