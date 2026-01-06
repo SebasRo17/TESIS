@@ -29,45 +29,12 @@ export function createTopicsRoutes() {
   );
 
   /**
-   * @route   GET /topics/:topicId
-   * @desc    Obtener detalle de un topic con breadcrumb e hijos
-   * @access  Private
-   */
-  router.get(
-    '/:topicId',
-    authMiddleware,
-    (req, res, next) => topicsController.getOne(req, res, next)
-  );
-
-  return router;
-}
-
-/**
- * Rutas de topics por curso (para montar en /courses/:courseId)
- */
-export function createCourseTopicsRoutes() {
-  const router = Router({ mergeParams: true });
-  const prisma = new PrismaClient();
-
-  // Inicializar dependencias
-  const topicRepository = new PrismaTopicRepository(prisma);
-  const getTopicsTreeUseCase = new GetTopicsTreeUseCase(topicRepository);
-  const getTopicsFlatUseCase = new GetTopicsFlatUseCase(topicRepository);
-  const getTopicByIdUseCase = new GetTopicByIdUseCase(topicRepository);
-
-  const topicsController = new TopicsController(
-    getTopicsTreeUseCase,
-    getTopicsFlatUseCase,
-    getTopicByIdUseCase
-  );
-
-  /**
    * @route   GET /courses/:courseId/topics/tree
    * @desc    Obtener árbol jerárquico de topics de un curso
    * @access  Private
    */
   router.get(
-    '/tree',
+    '/courses/:courseId/topics/tree',
     authMiddleware,
     validateCourseExists,
     (req, res, next) => topicsController.getTree(req, res, next)
@@ -79,10 +46,21 @@ export function createCourseTopicsRoutes() {
    * @access  Private
    */
   router.get(
-    '/',
+    '/courses/:courseId/topics',
     authMiddleware,
     validateCourseExists,
     (req, res, next) => topicsController.getAllFlat(req, res, next)
+  );
+
+  /**
+   * @route   GET /topics/:topicId
+   * @desc    Obtener detalle de un topic con breadcrumb e hijos
+   * @access  Private
+   */
+  router.get(
+    '/topics/:topicId',
+    authMiddleware,
+    (req, res, next) => topicsController.getOne(req, res, next)
   );
 
   return router;
