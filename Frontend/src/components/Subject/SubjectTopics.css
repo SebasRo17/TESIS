@@ -1,0 +1,80 @@
+.topics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1.25rem;
+}
+
+.topic-card {
+  background: #fff;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 1.25rem;
+  cursor: pointer;
+}
+
+.topic-card.done {
+  border: 1px solid #a7f3d0;
+}
+
+.topic-header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: start;
+  margin-bottom: 0.5rem;
+}
+
+.topic-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.topic-icon.green {
+  color: #16a34a;
+}
+
+.topic-icon.blue {
+  color: #2563eb;
+}
+
+.topic-header h3 {
+  font-weight: 600;
+  color: #111827;
+}
+
+.topic-header p {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.topic-progress-label {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.topic-progress-bar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  margin: 0.25rem 0 0.6rem 0;
+  overflow: hidden;
+}
+
+.fill.green {
+  background: #22c55e;
+  height: 100%;
+}
+
+.fill.blue {
+  background: #3b82f6;
+  height: 100%;
+}
+
+.topic-actions {
+  display: flex;
+  justify-content: start;
+  gap: 1.25rem;
+  font-size: 0.85rem;
+  color: #111827;
+  font-weight: 500;
+}

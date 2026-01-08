@@ -1,0 +1,22 @@
+:root {
+  --bg-soft: #f5f7ff;
+  --card-radius-lg: 24px;
+  --card-radius-md: 18px;
+
+  --blue: #2563eb;
+  --blue-dark: #1d4ed8;
+  --green: #22c55e;
+  --orange: #f97316;
+  --purple: #7c3aed;
+  --purple-deep: #5b21b6;
+  --gray-soft: #e5e7eb;
+  --text-main: #111827;
+  --text-muted: #6b7280;
+  --shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: var(--bg-soft);
+  margin: 0;
+}
