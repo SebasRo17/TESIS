@@ -1,58 +1,96 @@
-import React from "react";
-import { BookOpen, Calculator, ArrowRight, CheckCircle } from "lucide-react";
+import React, { useMemo } from "react";
+import { ArrowRight, BookOpenCheck, Calculator, CheckCircle2 } from "lucide-react";
 
 export default function SubjectCard({ subject, onSelect }) {
-  const Icon =
-    subject.icon === "BookOpen" ? BookOpen : subject.icon === "Calculator" ? Calculator : BookOpen;
+  const palette = useMemo(() => {
+    // Ajusta esta lógica según cómo venga tu subject
+    // Ej: subject.key / subject.slug / subject.title
+    const t = String(subject?.title || "").toLowerCase();
+
+    // Verbal (teal/cyan)
+    if (t.includes("verbal") || t.includes("lectora")) {
+      return {
+        iconBg: "bg-teal-50 border-teal-100",
+        iconColor: "text-teal-700",
+        bar: "from-teal-500 to-cyan-500",
+        pill: "bg-teal-50 text-teal-700 border-teal-100",
+        watermark: BookOpenCheck,
+      };
+    }
+
+    // Matemático (indigo/blue)
+    return {
+      iconBg: "bg-indigo-50 border-indigo-100",
+      iconColor: "text-indigo-700",
+      bar: "from-indigo-500 to-sky-500",
+      pill: "bg-indigo-50 text-indigo-700 border-indigo-100",
+      watermark: Calculator,
+    };
+  }, [subject]);
+
+  const WatermarkIcon = palette.watermark;
+
+  const progress = Number(subject?.progress ?? 0); // 0..100
+  const completed = subject?.completedTopics ?? subject?.completed ?? 0;
+  const total = subject?.totalTopics ?? subject?.total ?? 0;
 
   return (
-    <div
-      onClick={() => onSelect(subject.id)}
-      className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md hover:border-blue-300 transition cursor-pointer group"
+    <button
+      type="button"
+      onClick={() => onSelect && onSelect(subject)}
+      className="text-left relative w-full overflow-hidden rounded-3xl bg-white/70 backdrop-blur-xl border border-white/40 shadow-lg p-7"
     >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div
-            className={`p-3 rounded-lg ${
-              subject.id === "verbal"
-                ? "bg-purple-100 text-purple-700"
-                : "bg-blue-100 text-blue-700"
-            }`}
-          >
-            <Icon className="h-6 w-6" />
+
+      {/* header */}
+      <div className="relative flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className={`h-12 w-12 rounded-2xl border flex items-center justify-center ${palette.iconBg}`}>
+            <WatermarkIcon className={`w-6 h-6 ${palette.iconColor}`} />
           </div>
+
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              {subject.name}
+            <h3 className="text-lg font-extrabold text-slate-900">
+              {subject.title}
             </h3>
-            <p className="text-sm text-gray-600">{subject.description}</p>
+            <p className="text-sm text-slate-600 mt-1">
+              {subject.description}
+            </p>
           </div>
         </div>
-        <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-blue-500" />
+
+        <div className="shrink-0 inline-flex items-center gap-2 text-sm font-extrabold text-slate-700">
+          Ver <ArrowRight className="w-4 h-4" />
+        </div>
       </div>
 
-      <div className="mt-4">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">Progreso</span>
-          <span className="font-semibold text-gray-900">
-            {subject.progress}%
-          </span>
+      {/* progress */}
+      <div className="relative mt-6">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-slate-700">Progreso</p>
+          <p className="text-sm font-extrabold text-slate-900">{progress}%</p>
         </div>
-        <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
+
+        <div className="mt-2 h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
           <div
-            className={`h-full rounded-full ${
-              subject.id === "verbal" ? "bg-purple-500" : "bg-blue-600"
-            }`}
-            style={{ width: `${subject.progress}%` }}
+            className={`h-full rounded-full bg-gradient-to-r ${palette.bar}`}
+            style={{ width: `${progress}%` }}
           />
         </div>
-        <div className="mt-3 flex items-center gap-1 text-sm">
-          <CheckCircle className="h-4 w-4 text-green-500" />
-          <span className="text-gray-600">
-            {subject.completedTopics}/{subject.totalTopics} temas completados
+
+        <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
+          <span className="inline-flex items-center gap-2 text-sm text-slate-600">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span className="font-extrabold text-slate-700">
+              {completed}/{total}
+            </span>
+            temas completados
+          </span>
+
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold border ${palette.pill}`}>
+            {progress >= 80 ? "¡Vas excelente!" : progress >= 40 ? "Buen ritmo" : "Empecemos"}
           </span>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

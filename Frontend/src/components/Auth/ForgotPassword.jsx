@@ -1,15 +1,17 @@
 // src/components/Auth/ForgotPasswordModal.jsx
 import React, { useState } from "react";
 import { Mail, X, CheckCircle2 } from "lucide-react";
+import { forgotPasswordRequest } from "../../services/authService";
 
 export default function ForgotPasswordModal({ open, onClose }) {
   const [step, setStep] = useState("email"); // "email" | "sent"
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+  const [isSending, setIsSending] = useState(false);
 
   if (!open) return null;
 
-  const handleSendEmail = (e) => {
+  const handleSendEmail = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -18,11 +20,16 @@ export default function ForgotPasswordModal({ open, onClose }) {
       return;
     }
 
-    // 👉 Aquí normalmente llamarías a tu API: requestPasswordReset(email)
-    console.log("Simulando envío de correo de recuperación a:", email);
-
-    // Pasamos al mensaje de correo enviado
-    setStep("sent");
+    setIsSending(true);
+    try {
+      await forgotPasswordRequest(email);
+      setStep("sent");
+    } catch (e2) {
+      const msg = e2?.response?.data?.error || "No fue posible enviar el correo.";
+      setError(msg);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const closeAll = () => {
@@ -44,7 +51,7 @@ export default function ForgotPasswordModal({ open, onClose }) {
 
         {step === "email" && (
           <>
-            <h2 className="text-xl font-bold text-slate-900 mb-1 align-middle flex items-center gap-2 justify-center">
+            <h2 className="text-xl font-bold text-slate-900 mb-3 align-middle flex items-center gap-2 justify-center">
               ¿Olvidaste tu contraseña?
             </h2>
             <p className="text-sm text-slate-600 mb-4 align-middle flex items-center gap-2 justify-center">
@@ -76,9 +83,10 @@ export default function ForgotPasswordModal({ open, onClose }) {
 
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition"
+                disabled={isSending}
+                className="w-full py-2.5 rounded-xl cursor-pointer bg-cyan-500 text-white text-sm font-semibold hover:bg-cyan-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Enviar enlace de recuperación
+                {isSending ? "Enviando..." : "Enviar enlace de recuperación"}
               </button>
             </form>
           </>
@@ -87,22 +95,17 @@ export default function ForgotPasswordModal({ open, onClose }) {
         {step === "sent" && (
           <div className="flex flex-col items-center text-center py-4">
             <CheckCircle2 className="w-12 h-12 text-emerald-500 mb-3" />
-            <h2 className="text-lg font-bold text-slate-900 mb-1">
-              ¡Correo enviado!
-            </h2>
+            <h2 className="text-lg font-bold text-slate-900 mb-1">¡Correo enviado!</h2>
             <p className="text-sm text-slate-600 mb-2">
-              Hemos enviado un enlace de recuperación a:
+              Si existe el correo, se ha enviado un enlace de recuperación a:
             </p>
-            <p className="text-sm font-semibold text-slate-800 mb-4">
-              {email}
-            </p>
+            <p className="text-sm font-semibold text-slate-800 mb-4">{email}</p>
             <p className="text-[11px] text-slate-500 mb-4 max-w-xs">
-              Si no lo encuentras en tu bandeja de entrada, revisa también la
-              carpeta de spam o correos no deseados.
+              Si no lo encuentras en tu bandeja de entrada, revisa también la carpeta de spam.
             </p>
             <button
               onClick={closeAll}
-              className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition"
+              className="px-4 py-2 rounded-xl bg-cyan-500 text-white text-sm font-semibold hover:bg-cyan-600 transition"
             >
               Volver al inicio de sesión
             </button>
