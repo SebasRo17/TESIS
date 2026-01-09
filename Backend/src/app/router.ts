@@ -27,12 +27,12 @@ export function createRouter() {
     const lessonsSubroutes = createLessonsSubroutes();
     
     // GET /courses/:courseId/lessons
-    router.get('/courses/:courseId/lessons', (req, res) => 
+    router.get('/courses/:courseId/lessons', lessonsSubroutes.authMiddleware, (req, res) => 
         lessonsSubroutes.controller.getByCourse(req, res)
     );
 
     // GET /topics/:topicId/lessons
-    router.get('/topics/:topicId/lessons', (req, res) => 
+    router.get('/topics/:topicId/lessons', lessonsSubroutes.authMiddleware, (req, res) => 
         lessonsSubroutes.controller.getByTopic(req, res)
     );
 
