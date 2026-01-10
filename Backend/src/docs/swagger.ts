@@ -32,6 +32,47 @@ const options = {
         },
       },
       schemas: {
+                ExamResponse: {
+                  type: "object",
+                  properties: {
+                    id: { type: "number", example: 1 },
+                    title: { type: "string", example: "Examen Diagnóstico de Matemáticas" },
+                    mode: { type: "string", enum: ["diagnostic", "mock", "final"], example: "diagnostic" },
+                    timeLimitSec: { type: "number", example: 3600 },
+                    version: { type: "number", example: 1 },
+                    isActive: { type: "boolean", example: true },
+                    createdAt: { type: "string", format: "date-time" },
+                    updatedAt: { type: "string", format: "date-time" },
+                  },
+                },
+                ExamAttemptResponse: {
+                  type: "object",
+                  properties: {
+                    id: { type: "number", example: 100 },
+                    userId: { type: "number", example: 10 },
+                    examId: { type: "number", example: 1 },
+                    startedAt: { type: "string", format: "date-time" },
+                    completedAt: { type: "string", format: "date-time", nullable: true },
+                    durationSec: { type: "number", nullable: true },
+                    scoreRaw: { type: "number", nullable: true },
+                    scoreNorm: { type: "number", nullable: true },
+                    metadata: { type: "object" },
+                  },
+                },
+                ItemResponseResponse: {
+                  type: "object",
+                  properties: {
+                    id: { type: "number", example: 1 },
+                    attemptId: { type: "number", example: 100 },
+                    itemId: { type: "number", example: 5 },
+                    answer: { type: "object" },
+                    isCorrect: { type: "boolean", nullable: true },
+                    timeSpentSec: { type: "number", nullable: true },
+                    hintsUsed: { type: "number" },
+                    awardedScore: { type: "number", nullable: true },
+                    createdAt: { type: "string", format: "date-time" },
+                  },
+                },
         LoginRequest: {
           type: "object",
           required: ["email", "password"],
@@ -208,9 +249,156 @@ const options = {
             },
           },
         },
+        LessonResponse: {
+          type: "object",
+          properties: {
+            id: { type: "number", example: 1 },
+            courseId: { type: "number", example: 1 },
+            primaryTopicId: { type: "number", nullable: true, example: 2 },
+            title: { type: "string", example: "Introducción a Funciones" },
+            canonicalSlug: { type: "string", example: "intro-funciones" },
+            isActive: { type: "boolean", example: true },
+            version: { type: "number", example: 1 },
+          },
+        },
+        LessonDetailResponse: {
+          type: "object",
+          properties: {
+            id: { type: "number", example: 1 },
+            courseId: { type: "number", example: 1 },
+            courseTitle: { type: "string", example: "Matemática" },
+            primaryTopicId: { type: "number", nullable: true, example: 2 },
+            topicName: { type: "string", example: "Funciones" },
+            title: { type: "string", example: "Introducción a Funciones" },
+            canonicalSlug: { type: "string", example: "intro-funciones" },
+            isActive: { type: "boolean", example: true },
+            version: { type: "number", example: 1 },
+          },
+        },
+        PrerequisiteResponse: {
+          type: "object",
+          properties: {
+            id: { type: "number", example: 1 },
+            lessonId: { type: "number", example: 1 },
+            requiredTopicId: { type: "number", example: 1 },
+            minMastery: { type: "number", format: "float", example: 0.75 },
+            topicName: { type: "string", example: "Números Reales" },
+          },
+        },
       },
     },
     paths: {
+            "/courses/{courseId}/exams": {
+              get: {
+                tags: ["Assessment"],
+                summary: "Obtener exámenes activos por curso",
+                description: "Retorna exámenes activos asociados al curso",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                  { in: "path", name: "courseId", required: true, schema: { type: "integer" }, example: 1 },
+                ],
+                responses: {
+                  "200": {
+                    description: "Lista de exámenes",
+                    content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean" }, data: { type: "array", items: { $ref: "#/components/schemas/ExamResponse" } } } } } },
+                  },
+                  "401": { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+                },
+              },
+            },
+            "/exams/{examId}/attempts": {
+              post: {
+                tags: ["Assessment"],
+                summary: "Iniciar intento de examen",
+                description: "Crea un intento para el usuario autenticado",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                  { in: "path", name: "examId", required: true, schema: { type: "integer" }, example: 1 },
+                ],
+                responses: {
+                  "201": {
+                    description: "Intento creado",
+                    content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean" }, data: { $ref: "#/components/schemas/ExamAttemptResponse" } } } } },
+                  },
+                  "400": { description: "Examen inválido", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+                  "401": { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+                },
+              },
+            },
+            "/exam-attempts/{attemptId}/responses": {
+              post: {
+                tags: ["Assessment"],
+                summary: "Registrar respuesta a ítem",
+                description: "Registra una respuesta dentro de un intento",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                  { in: "path", name: "attemptId", required: true, schema: { type: "integer" }, example: 100 },
+                ],
+                requestBody: {
+                  required: true,
+                  content: {
+                    "application/json": {
+                      schema: {
+                        type: "object",
+                        required: ["itemId", "answer"],
+                        properties: {
+                          itemId: { type: "number", example: 5 },
+                          answer: { type: "object" },
+                          timeSpentSec: { type: "number" },
+                          hintsUsed: { type: "number" },
+                        },
+                      },
+                    },
+                  },
+                },
+                responses: {
+                  "201": {
+                    description: "Respuesta registrada",
+                    content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean" }, data: { $ref: "#/components/schemas/ItemResponseResponse" } } } } },
+                  },
+                  "400": { description: "Datos inválidos", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+                  "401": { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+                },
+              },
+            },
+            "/exam-attempts/{attemptId}/finish": {
+              post: {
+                tags: ["Assessment"],
+                summary: "Finalizar intento de examen",
+                description: "Calcula métricas y marca como completado",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                  { in: "path", name: "attemptId", required: true, schema: { type: "integer" }, example: 100 },
+                ],
+                responses: {
+                  "200": {
+                    description: "Intento finalizado",
+                    content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean" }, data: { $ref: "#/components/schemas/ExamAttemptResponse" } } } } },
+                  },
+                  "400": { description: "Intento inválido", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+                  "401": { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+                },
+              },
+            },
+            "/exam-attempts/{attemptId}": {
+              get: {
+                tags: ["Assessment"],
+                summary: "Obtener detalle de intento",
+                description: "Devuelve respuestas, puntaje y métricas",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                  { in: "path", name: "attemptId", required: true, schema: { type: "integer" }, example: 100 },
+                ],
+                responses: {
+                  "200": {
+                    description: "Detalle de intento",
+                    content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean" }, data: { type: "object" } } } } },
+                  },
+                  "401": { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+                  "404": { description: "Intento no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+                },
+              },
+            },
       "/auth/register": {
         post: {
           tags: ["Auth"],
@@ -613,6 +801,183 @@ const options = {
             },
             "404": {
               description: "Topic no encontrado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "500": {
+              description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/courses/{courseId}/lessons": {
+        get: {
+          tags: ["Lessons"],
+          summary: "Obtener lecciones por curso",
+          description: "Retorna todas las lecciones activas de un curso específico",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "courseId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID del curso",
+              example: 1,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Lecciones obtenidas exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/LessonResponse" },
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Course ID inválido",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "500": {
+              description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/topics/{topicId}/lessons": {
+        get: {
+          tags: ["Lessons"],
+          summary: "Obtener lecciones por tema",
+          description: "Retorna todas las lecciones activas cuyo tema principal corresponde al tema especificado",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "topicId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID del tema",
+              example: 2,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Lecciones obtenidas exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/LessonResponse" },
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Topic ID inválido",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "500": {
+              description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/lessons/{lessonId}": {
+        get: {
+          tags: ["Lessons"],
+          summary: "Obtener detalle de una lección",
+          description: "Retorna la información detallada de una lección específica incluyendo título del curso y nombre del tema",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "lessonId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID de la lección",
+              example: 1,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Detalle de lección obtenido exitosamente",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/LessonDetailResponse" },
+                },
+              },
+            },
+            "400": {
+              description: "Lesson ID inválido",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "404": {
+              description: "Lección no encontrada",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "500": {
+              description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/lessons/{lessonId}/prereqs": {
+        get: {
+          tags: ["Lessons"],
+          summary: "Obtener prerequisitos de una lección",
+          description: "Retorna los prerequisitos académicos informativos de una lección (temas requeridos y nivel mínimo de maestría)",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "lessonId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID de la lección",
+              example: 1,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Prerequisitos obtenidos exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/PrerequisiteResponse" },
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Lesson ID inválido",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "404": {
+              description: "Lección no encontrada",
               content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
             },
             "500": {
