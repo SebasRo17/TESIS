@@ -208,6 +208,42 @@ const options = {
             },
           },
         },
+        LessonResponse: {
+          type: "object",
+          properties: {
+            id: { type: "number", example: 1 },
+            courseId: { type: "number", example: 1 },
+            primaryTopicId: { type: "number", nullable: true, example: 2 },
+            title: { type: "string", example: "Introducción a Funciones" },
+            canonicalSlug: { type: "string", example: "intro-funciones" },
+            isActive: { type: "boolean", example: true },
+            version: { type: "number", example: 1 },
+          },
+        },
+        LessonDetailResponse: {
+          type: "object",
+          properties: {
+            id: { type: "number", example: 1 },
+            courseId: { type: "number", example: 1 },
+            courseTitle: { type: "string", example: "Matemática" },
+            primaryTopicId: { type: "number", nullable: true, example: 2 },
+            topicName: { type: "string", example: "Funciones" },
+            title: { type: "string", example: "Introducción a Funciones" },
+            canonicalSlug: { type: "string", example: "intro-funciones" },
+            isActive: { type: "boolean", example: true },
+            version: { type: "number", example: 1 },
+          },
+        },
+        PrerequisiteResponse: {
+          type: "object",
+          properties: {
+            id: { type: "number", example: 1 },
+            lessonId: { type: "number", example: 1 },
+            requiredTopicId: { type: "number", example: 1 },
+            minMastery: { type: "number", format: "float", example: 0.75 },
+            topicName: { type: "string", example: "Números Reales" },
+          },
+        },
       },
     },
     paths: {
@@ -613,6 +649,183 @@ const options = {
             },
             "404": {
               description: "Topic no encontrado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "500": {
+              description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/courses/{courseId}/lessons": {
+        get: {
+          tags: ["Lessons"],
+          summary: "Obtener lecciones por curso",
+          description: "Retorna todas las lecciones activas de un curso específico",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "courseId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID del curso",
+              example: 1,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Lecciones obtenidas exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/LessonResponse" },
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Course ID inválido",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "500": {
+              description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/topics/{topicId}/lessons": {
+        get: {
+          tags: ["Lessons"],
+          summary: "Obtener lecciones por tema",
+          description: "Retorna todas las lecciones activas cuyo tema principal corresponde al tema especificado",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "topicId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID del tema",
+              example: 2,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Lecciones obtenidas exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/LessonResponse" },
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Topic ID inválido",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "500": {
+              description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/lessons/{lessonId}": {
+        get: {
+          tags: ["Lessons"],
+          summary: "Obtener detalle de una lección",
+          description: "Retorna la información detallada de una lección específica incluyendo título del curso y nombre del tema",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "lessonId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID de la lección",
+              example: 1,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Detalle de lección obtenido exitosamente",
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/LessonDetailResponse" },
+                },
+              },
+            },
+            "400": {
+              description: "Lesson ID inválido",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "404": {
+              description: "Lección no encontrada",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "500": {
+              description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/lessons/{lessonId}/prereqs": {
+        get: {
+          tags: ["Lessons"],
+          summary: "Obtener prerequisitos de una lección",
+          description: "Retorna los prerequisitos académicos informativos de una lección (temas requeridos y nivel mínimo de maestría)",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "lessonId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID de la lección",
+              example: 1,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Prerequisitos obtenidos exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/PrerequisiteResponse" },
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Lesson ID inválido",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "404": {
+              description: "Lección no encontrada",
               content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
             },
             "500": {
