@@ -5,6 +5,7 @@ import { createCoursesRoutes } from '../modules/courses/interface/http/courses.r
 import { createTopicsRoutes } from '../modules/topics/interface/http/topics.route';
 import { createLessonsRoutes, createLessonsSubroutes } from '../modules/lessons/interface/http/lessons.route';
 import { createAssessmentRouter } from '../modules/assesment/interface/http/assessmentRoutes';
+import { createProgressRouter } from '../modules/progress/interface/http/progressRoutes';
 
 export function createRouter() {
     const router = Router();
@@ -26,6 +27,9 @@ export function createRouter() {
 
     // Rutas de Assessment
     router.use(createAssessmentRouter());
+
+    // Rutas de Progress
+    router.use(createProgressRouter());
 
     // Rutas de Lessons desde otros contextos (subrutas)
     const lessonsSubroutes = createLessonsSubroutes();
