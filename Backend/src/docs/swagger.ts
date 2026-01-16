@@ -285,6 +285,81 @@ const options = {
             topicName: { type: "string", example: "Números Reales" },
           },
         },
+        LessonProgressResponse: {
+          type: "object",
+          properties: {
+            id: { type: "number", example: 1 },
+            userId: { type: "number", example: 31 },
+            lessonId: { type: "number", example: 1 },
+            status: { type: "string", enum: ["not_started", "in_progress", "completed"], example: "in_progress" },
+            lastPosition: { type: "string", nullable: true, example: "page-5" },
+            completedAt: { type: "string", format: "date-time", nullable: true },
+            timeSpentSec: { type: "number", nullable: true, example: 300 },
+          },
+        },
+        LessonProgressDetailResponse: {
+          type: "object",
+          properties: {
+            id: { type: "number", example: 1 },
+            userId: { type: "number", example: 31 },
+            lessonId: { type: "number", example: 1 },
+            status: { type: "string", example: "completed" },
+            lastPosition: { type: "string", nullable: true, example: "final-section" },
+            completedAt: { type: "string", format: "date-time", nullable: true },
+            timeSpentSec: { type: "number", nullable: true, example: 1200 },
+            lessonTitle: { type: "string", example: "Introducción a Álgebra" },
+            courseTitle: { type: "string", example: "Matemáticas" },
+          },
+        },
+        UpdateProgressRequest: {
+          type: "object",
+          properties: {
+            lastPosition: { type: "string", example: "page-5" },
+            timeSpentSec: { type: "number", example: 300 },
+          },
+        },
+        CourseProgressResponse: {
+          type: "object",
+          properties: {
+            courseId: { type: "number", example: 1 },
+            userId: { type: "number", example: 31 },
+            totalLessons: { type: "number", example: 20 },
+            completedLessons: { type: "number", example: 5 },
+            inProgressLessons: { type: "number", example: 2 },
+            totalTimeSpentSec: { type: "number", example: 3600 },
+            completionPercentage: { type: "number", format: "float", example: 25.0 },
+            lastActivityAt: { type: "string", format: "date-time", nullable: true },
+          },
+        },
+        RecentActivityResponse: {
+          type: "object",
+          properties: {
+            userId: { type: "number", example: 31 },
+            lastLessonActivity: {
+              type: "object",
+              nullable: true,
+              properties: {
+                lessonId: { type: "number", example: 1 },
+                lessonTitle: { type: "string", example: "Introducción a Álgebra" },
+                courseTitle: { type: "string", example: "Matemáticas" },
+                status: { type: "string", example: "completed" },
+                lastInteraction: { type: "string", format: "date-time" },
+              },
+            },
+            lastExamActivity: {
+              type: "object",
+              nullable: true,
+              properties: {
+                examId: { type: "number", example: 3 },
+                examTitle: { type: "string", example: "Examen Diagnóstico" },
+                attemptId: { type: "number", example: 12 },
+                completedAt: { type: "string", format: "date-time", nullable: true },
+                lastInteraction: { type: "string", format: "date-time" },
+              },
+            },
+            lastActivityDate: { type: "string", format: "date-time", nullable: true },
+          },
+        },
       },
     },
     paths: {
@@ -982,6 +1057,270 @@ const options = {
             },
             "500": {
               description: "Error interno del servidor",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/lessons/{lessonId}/progress/start": {
+        post: {
+          tags: ["Progress"],
+          summary: "Iniciar progreso de lección",
+          description: "Registra que el usuario ha comenzado una lección. Solo se puede iniciar una vez.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "lessonId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID de la lección",
+              example: 1,
+            },
+          ],
+          responses: {
+            "201": {
+              description: "Progreso iniciado exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: { $ref: "#/components/schemas/LessonProgressResponse" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "409": {
+              description: "El progreso de esta lección ya existe",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/lessons/{lessonId}/progress/update": {
+        post: {
+          tags: ["Progress"],
+          summary: "Actualizar progreso de lección",
+          description: "Actualiza el avance del usuario dentro de una lección (posición actual y tiempo invertido)",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "lessonId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID de la lección",
+              example: 1,
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/UpdateProgressRequest" },
+                examples: {
+                  soloPositions: {
+                    summary: "Solo actualizar posición",
+                    value: { lastPosition: "page-5" },
+                  },
+                  soloTiempo: {
+                    summary: "Solo actualizar tiempo",
+                    value: { timeSpentSec: 300 },
+                  },
+                  ambos: {
+                    summary: "Actualizar posición y tiempo",
+                    value: { lastPosition: "page-5", timeSpentSec: 300 },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Progreso actualizado exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: { $ref: "#/components/schemas/LessonProgressResponse" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "No se puede actualizar una lección completada",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "404": {
+              description: "No se encontró progreso para esta lección",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/lessons/{lessonId}/progress/complete": {
+        post: {
+          tags: ["Progress"],
+          summary: "Completar lección",
+          description: "Marca la lección como completada por el usuario. No se puede modificar después de completada.",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "lessonId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID de la lección",
+              example: 1,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Lección completada exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: { $ref: "#/components/schemas/LessonProgressResponse" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "La lección ya está marcada como completada",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "404": {
+              description: "No se encontró progreso para esta lección",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/lessons/{lessonId}/progress": {
+        get: {
+          tags: ["Progress"],
+          summary: "Obtener detalle de progreso de lección",
+          description: "Retorna el estado actual del progreso del usuario en una lección específica con información extendida",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "lessonId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID de la lección",
+              example: 1,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Detalle de progreso obtenido exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: { $ref: "#/components/schemas/LessonProgressDetailResponse" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "404": {
+              description: "No se encontró progreso para esta lección",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/me/courses/{courseId}/progress": {
+        get: {
+          tags: ["Progress"],
+          summary: "Obtener progreso por curso",
+          description: "Retorna métricas agregadas del avance del usuario en un curso específico (lecciones completadas, en progreso, tiempo total, etc.)",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "courseId",
+              required: true,
+              schema: { type: "integer" },
+              description: "ID del curso",
+              example: 1,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Progreso del curso obtenido exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: { $ref: "#/components/schemas/CourseProgressResponse" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/me/progress/recent": {
+        get: {
+          tags: ["Progress"],
+          summary: "Obtener actividad reciente",
+          description: "Retorna la última actividad registrada del usuario (última lección y último examen)",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": {
+              description: "Actividad reciente obtenida exitosamente",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: { $ref: "#/components/schemas/RecentActivityResponse" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": {
+              description: "No autenticado",
               content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
             },
           },
