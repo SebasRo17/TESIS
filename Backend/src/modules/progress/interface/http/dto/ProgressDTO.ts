@@ -12,11 +12,11 @@ import type { RecentActivity, LessonActivity, ExamActivity } from '../../../doma
 
 // Request params
 export interface LessonIdParams {
-  lessonId: number;
+  lessonId: string;
 }
 
 export interface CourseIdParams {
-  courseId: number;
+  courseId: string;
 }
 
 // Request body

@@ -44,7 +44,7 @@ export class ProgressController {
       const userId = req.user!.id;
       const { lessonId } = req.params as unknown as LessonIdParams;
 
-      const progress = await this.startLessonProgressUseCase.execute(userId, lessonId);
+      const progress = await this.startLessonProgressUseCase.execute(userId, Number(lessonId));
 
       res.status(201).json({
         success: true,
@@ -69,7 +69,7 @@ export class ProgressController {
       const { lessonId } = req.params as unknown as LessonIdParams;
       const body = req.body as UpdateProgressBody;
 
-      const progress = await this.updateLessonProgressUseCase.execute(userId, lessonId, body);
+      const progress = await this.updateLessonProgressUseCase.execute(userId, Number(lessonId), body);
 
       res.status(200).json({
         success: true,
@@ -93,7 +93,7 @@ export class ProgressController {
       const userId = req.user!.id;
       const { lessonId } = req.params as unknown as LessonIdParams;
 
-      const progress = await this.completeLessonProgressUseCase.execute(userId, lessonId);
+      const progress = await this.completeLessonProgressUseCase.execute(userId, Number(lessonId));
 
       res.status(200).json({
         success: true,
@@ -117,7 +117,7 @@ export class ProgressController {
       const userId = req.user!.id;
       const { lessonId } = req.params as unknown as LessonIdParams;
 
-      const progress = await this.getLessonProgressDetailUseCase.execute(userId, lessonId);
+      const progress = await this.getLessonProgressDetailUseCase.execute(userId, Number(lessonId));
 
       if (!progress) {
         res.status(404).json({
@@ -152,7 +152,7 @@ export class ProgressController {
       const userId = req.user!.id;
       const { courseId } = req.params as unknown as CourseIdParams;
 
-      const courseProgress = await this.getCourseProgressUseCase.execute(userId, courseId);
+      const courseProgress = await this.getCourseProgressUseCase.execute(userId, Number(courseId));
 
       res.status(200).json({
         success: true,

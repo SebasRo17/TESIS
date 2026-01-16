@@ -13,7 +13,7 @@ export const validateRequest = (schema: {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (schema.params) {
-        req.params = await schema.params.parseAsync(req.params);
+        req.params = await schema.params.parseAsync(req.params) as any;
       }
 
       if (schema.body) {
@@ -21,7 +21,7 @@ export const validateRequest = (schema: {
       }
 
       if (schema.query) {
-        req.query = await schema.query.parseAsync(req.query);
+        req.query = await schema.query.parseAsync(req.query) as any;
       }
 
       next();
