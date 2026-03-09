@@ -39,5 +39,13 @@ export const env = {
         refreshToken: process.env.GMAIL_REFRESH_TOKEN || "",
     },
 
-    frontendUrl: process.env.FRONTEND_URL || "http://localhost:4200"
+    frontendUrl: process.env.FRONTEND_URL || "http://localhost:4200",
+
+    mastery: {
+        internalApiKey: process.env.MASTERY_INTERNAL_API_KEY || "",
+    },
+
+    studyPlans: {
+        internalApiKey: process.env.STUDY_PLANS_INTERNAL_API_KEY || "",
+    },
 };

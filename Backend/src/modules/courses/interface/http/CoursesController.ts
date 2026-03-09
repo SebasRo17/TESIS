@@ -5,6 +5,10 @@ import { GetCourseBySlugUseCase } from "../../application/GetCourseBySlugUseCase
 import { CourseNotFoundError } from "../../domain/errors/CourseNotFoundError";
 import type { CourseResponse } from "./dto/CourseResponse";
 
+function getSingleParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 export class CoursesController {
   constructor(
     private getCourses: GetCoursesUseCase,
@@ -36,7 +40,7 @@ export class CoursesController {
   }
 
   async getBySlug(req: Request, res: Response): Promise<void> {
-    const { slug } = req.params;
+    const slug = getSingleParam(req.params.slug);
     if (!slug) {
       res.status(400).json({ error: "Slug es requerido" });
       return;

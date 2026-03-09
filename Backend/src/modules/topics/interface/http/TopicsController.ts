@@ -7,6 +7,10 @@ import { TopicResponseDtoMapper } from './dto/TopicResponseDto';
 import { TopicDetailResponseDtoMapper } from './dto/TopicDetailResponseDto';
 import { AppError } from '../../../../core/errors/AppError';
 
+function getSingleParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 export class TopicsController {
   constructor(
     private readonly getTopicsTreeUseCase: GetTopicsTreeUseCase,
@@ -16,11 +20,11 @@ export class TopicsController {
 
   /**
    * GET /courses/:courseId/topics/tree
-   * Devuelve el √°rbol jer√°rquico de topics del curso
+   * Devuelve el ·rbol jer·rquico de topics del curso
    */
   async getTree(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const courseIdParam = req.params.courseId;
+      const courseIdParam = getSingleParam(req.params.courseId);
       if (!courseIdParam) {
         throw new AppError('El courseId es requerido', 400);
       }
@@ -44,7 +48,7 @@ export class TopicsController {
    */
   async getAllFlat(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const courseIdParam = req.params.courseId;
+      const courseIdParam = getSingleParam(req.params.courseId);
       if (!courseIdParam) {
         throw new AppError('El courseId es requerido', 400);
       }
@@ -68,14 +72,14 @@ export class TopicsController {
    */
   async getOne(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const topicIdParam = req.params.topicId;
+      const topicIdParam = getSingleParam(req.params.topicId);
       if (!topicIdParam) {
         throw new AppError('El topicId es requerido', 400);
       }
       const topicId = parseInt(topicIdParam, 10);
 
       if (isNaN(topicId)) {
-        throw new AppError('El topicId debe ser un n√∫mero v√°lido', 400);
+        throw new AppError('El topicId debe ser un n˙mero v·lido', 400);
       }
 
       const topicDetail = await this.getTopicByIdUseCase.execute(topicId);

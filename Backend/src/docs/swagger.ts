@@ -474,7 +474,233 @@ const options = {
                 },
               },
             },
-      "/auth/register": {
+      "/me/topics/{topicId}/mastery": {
+        get: {
+          tags: ["Mastery"],
+          summary: "Obtener dominio por tema",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ in: "path", name: "topicId", required: true, schema: { type: "integer" } }],
+          responses: {
+            "200": { description: "Mastery por topic" },
+            "401": { description: "No autenticado" },
+            "404": { description: "Topic no encontrado" }
+          }
+        }
+      },
+      "/me/courses/{courseId}/mastery": {
+        get: {
+          tags: ["Mastery"],
+          summary: "Obtener dominio por curso",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ in: "path", name: "courseId", required: true, schema: { type: "integer" } }],
+          responses: {
+            "200": { description: "Mastery por curso" },
+            "401": { description: "No autenticado" },
+            "404": { description: "Curso no encontrado" }
+          }
+        }
+      },
+      "/me/topics/{topicId}/mastery/journal": {
+        get: {
+          tags: ["Mastery"],
+          summary: "Obtener historial de mastery por tema",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { in: "path", name: "topicId", required: true, schema: { type: "integer" } },
+            { in: "query", name: "limit", required: false, schema: { type: "integer" } },
+            { in: "query", name: "offset", required: false, schema: { type: "integer" } }
+          ],
+          responses: {
+            "200": { description: "Journal de mastery" },
+            "401": { description: "No autenticado" },
+            "404": { description: "Topic no encontrado" }
+          }
+        }
+      },
+      "/mastery/update": {
+        post: {
+          tags: ["Mastery"],
+          summary: "Registrar actualización de mastery (interno)",
+          parameters: [{ in: "header", name: "x-internal-api-key", required: true, schema: { type: "string" } }],
+          responses: {
+            "200": { description: "Mastery actualizado" },
+            "401": { description: "No autorizado" },
+            "503": { description: "No configurado" }
+          }
+        }
+      },
+      "/study-rules": {
+        get: {
+          tags: ["Study Rules"],
+          summary: "Obtener reglas activas",
+          security: [{ bearerAuth: [] }],
+          responses: {
+            "200": { description: "Reglas activas" },
+            "401": { description: "No autenticado" }
+          }
+        }
+      },
+      "/study-rules/applicable": {
+        get: {
+          tags: ["Study Rules"],
+          summary: "Obtener reglas aplicables por contexto",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            { in: "query", name: "courseId", required: false, schema: { type: "integer" } },
+            { in: "query", name: "topicId", required: false, schema: { type: "integer" } },
+            { in: "query", name: "userId", required: false, schema: { type: "integer" } }
+          ],
+          responses: {
+            "200": { description: "Reglas aplicables" },
+            "400": { description: "Parámetros inválidos" },
+            "401": { description: "No autenticado" }
+          }
+        }
+      },
+      "/topics/{topicId}/study-rules": {
+        get: {
+          tags: ["Study Rules"],
+          summary: "Obtener reglas por tema",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ in: "path", name: "topicId", required: true, schema: { type: "integer" } }],
+          responses: {
+            "200": { description: "Reglas del tema" },
+            "401": { description: "No autenticado" },
+            "404": { description: "Topic no encontrado" }
+          }
+        }
+      },
+      "/study-rules/{ruleId}": {
+        get: {
+          tags: ["Study Rules"],
+          summary: "Obtener detalle de regla",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ in: "path", name: "ruleId", required: true, schema: { type: "integer" } }],
+          responses: {
+            "200": { description: "Detalle de regla" },
+            "401": { description: "No autenticado" },
+            "404": { description: "Regla no encontrada" }
+          }
+        }
+      },
+      "/lessons/{lessonId}/content": {
+        get: {
+          tags: ["Content"],
+          summary: "Obtener variantes de contenido por lección",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ in: "path", name: "lessonId", required: true, schema: { type: "integer" } }],
+          responses: {
+            "200": { description: "Variantes de contenido" },
+            "401": { description: "No autenticado" },
+            "404": { description: "Lección no encontrada" }
+          }
+        }
+      },
+      "/content/{variantId}": {
+        get: {
+          tags: ["Content"],
+          summary: "Obtener detalle de variante",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ in: "path", name: "variantId", required: true, schema: { type: "integer" } }],
+          responses: {
+            "200": { description: "Detalle de variante" },
+            "401": { description: "No autenticado" },
+            "404": { description: "Variante no encontrada" }
+          }
+        }
+      },
+      "/content/{variantId}/events": {
+        post: {
+          tags: ["Content"],
+          summary: "Registrar evento de consumo",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ in: "path", name: "variantId", required: true, schema: { type: "integer" } }],
+          responses: {
+            "201": { description: "Evento registrado" },
+            "400": { description: "Datos inválidos" },
+            "401": { description: "No autenticado" },
+            "404": { description: "Variante no encontrada" }
+          }
+        }
+      },
+      "/lessons/{lessonId}/content/prereqs": {
+        get: {
+          tags: ["Content"],
+          summary: "Obtener prerequisitos de contenido",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ in: "path", name: "lessonId", required: true, schema: { type: "integer" } }],
+          responses: {
+            "200": { description: "Prerequisitos" },
+            "401": { description: "No autenticado" },
+            "404": { description: "Lección no encontrada" }
+          }
+        }
+      },
+      "/me/courses/{courseId}/study-plan": {
+        get: {
+          tags: ["Study Plans"],
+          summary: "Obtener plan activo",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ in: "path", name: "courseId", required: true, schema: { type: "integer" } }],
+          responses: {
+            "200": { description: "Plan activo" },
+            "401": { description: "No autenticado" },
+            "404": { description: "Plan no encontrado" }
+          }
+        }
+      },
+      "/me/courses/{courseId}/study-plan/next": {
+        get: {
+          tags: ["Study Plans"],
+          summary: "Obtener siguiente actividad",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ in: "path", name: "courseId", required: true, schema: { type: "integer" } }],
+          responses: {
+            "200": { description: "Siguiente item" },
+            "401": { description: "No autenticado" },
+            "404": { description: "Plan no encontrado" }
+          }
+        }
+      },
+      "/study-plan/items/{itemId}": {
+        patch: {
+          tags: ["Study Plans"],
+          summary: "Actualizar estado de item",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ in: "path", name: "itemId", required: true, schema: { type: "integer" } }],
+          responses: {
+            "200": { description: "Item actualizado" },
+            "401": { description: "No autenticado" },
+            "403": { description: "No autorizado" },
+            "404": { description: "Item no encontrado" }
+          }
+        }
+      },
+      "/study-plans": {
+        post: {
+          tags: ["Study Plans"],
+          summary: "Crear nuevo plan (interno)",
+          parameters: [{ in: "header", name: "x-internal-api-key", required: true, schema: { type: "string" } }],
+          responses: {
+            "201": { description: "Plan creado" },
+            "400": { description: "Datos inválidos" },
+            "401": { description: "No autorizado" },
+            "503": { description: "No configurado" }
+          }
+        }
+      },
+      "/me/courses/{courseId}/study-plans": {
+        get: {
+          tags: ["Study Plans"],
+          summary: "Obtener historial de planes",
+          security: [{ bearerAuth: [] }],
+          parameters: [{ in: "path", name: "courseId", required: true, schema: { type: "integer" } }],
+          responses: {
+            "200": { description: "Historial de planes" },
+            "401": { description: "No autenticado" }
+          }
+        }
+      },      "/auth/register": {
         post: {
           tags: ["Auth"],
           summary: "Registrar nuevo usuario",
@@ -1332,3 +1558,5 @@ const options = {
 };
 
 export const swaggerSpec = swaggerJsdoc(options);
+
+

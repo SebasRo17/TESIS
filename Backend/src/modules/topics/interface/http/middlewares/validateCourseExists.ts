@@ -4,6 +4,10 @@ import { AppError } from '../../../../../core/errors/AppError';
 
 const prisma = new PrismaClient();
 
+function getSingleParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 /**
  * Middleware para validar que el curso existe
  */
@@ -13,7 +17,7 @@ export const validateCourseExists = async (
   next: NextFunction
 ) => {
   try {
-    const courseIdParam = req.params.courseId;
+    const courseIdParam = getSingleParam(req.params.courseId);
     
     if (!courseIdParam) {
       throw new AppError('El courseId es requerido', 400);
@@ -22,7 +26,7 @@ export const validateCourseExists = async (
     const courseId = parseInt(courseIdParam, 10);
 
     if (isNaN(courseId)) {
-      throw new AppError('El courseId debe ser un nÃºmero vÃ¡lido', 400);
+      throw new AppError('El courseId debe ser un número válido', 400);
     }
 
     const course = await prisma.courses.findUnique({

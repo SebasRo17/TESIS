@@ -5,6 +5,10 @@ import { createCoursesRoutes } from '../modules/courses/interface/http/courses.r
 import { createTopicsRoutes } from '../modules/topics/interface/http/topics.route';
 import { createLessonsRoutes, createLessonsSubroutes } from '../modules/lessons/interface/http/lessons.route';
 import { createAssessmentRouter } from '../modules/assesment/interface/http/assessmentRoutes';
+import { createMasteryRoutes } from '../modules/mastery/interface/http/mastery.route';
+import { createStudyRulesRoutes } from '../modules/study-rules/interface/http/study-rules.route';
+import { createContentRoutes } from '../modules/content/interface/http/content.route';
+import { createStudyPlansRoutes } from '../modules/study-plans/interface/http/study-plans.route';
 import { createProgressRouter } from '../modules/progress/interface/http/progressRoutes';
 
 export function createRouter() {
@@ -27,6 +31,18 @@ export function createRouter() {
 
     // Rutas de Assessment
     router.use(createAssessmentRouter());
+
+    // Rutas de Mastery
+    router.use(createMasteryRoutes());
+
+    // Rutas de Study Rules
+    router.use(createStudyRulesRoutes());
+
+    // Rutas de Content
+    router.use(createContentRoutes());
+
+    // Rutas de Study Plans
+    router.use(createStudyPlansRoutes());
 
     // Rutas de Progress
     router.use(createProgressRouter());
