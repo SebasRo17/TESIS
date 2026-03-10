@@ -48,4 +48,8 @@ export const env = {
     studyPlans: {
         internalApiKey: process.env.STUDY_PLANS_INTERNAL_API_KEY || "",
     },
+
+    orchestrator: {
+        internalApiKey: process.env.ORCHESTRATOR_INTERNAL_API_KEY || "",
+    },
 };

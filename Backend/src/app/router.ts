@@ -10,6 +10,7 @@ import { createStudyRulesRoutes } from '../modules/study-rules/interface/http/st
 import { createContentRoutes } from '../modules/content/interface/http/content.route';
 import { createStudyPlansRoutes } from '../modules/study-plans/interface/http/study-plans.route';
 import { createProgressRouter } from '../modules/progress/interface/http/progressRoutes';
+import { createOrchestratorRoutes } from '../modules/orchestrator/interface/http/orchestrator.route';
 
 export function createRouter() {
     const router = Router();
@@ -46,6 +47,9 @@ export function createRouter() {
 
     // Rutas de Progress
     router.use(createProgressRouter());
+
+    // Rutas de Orchestrator
+    router.use(createOrchestratorRoutes());
 
     // Rutas de Lessons desde otros contextos (subrutas)
     const lessonsSubroutes = createLessonsSubroutes();

@@ -1552,6 +1552,221 @@ const options = {
           },
         },
       },
+
+      "/orchestrator/users/{userId}/snapshot": {
+        get: {
+          tags: ["Orchestrator"],
+          summary: "Obtener snapshot del usuario",
+          description: "Construye el snapshot completo del usuario para un curso",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "userId",
+              required: true,
+              schema: { type: "integer" },
+              example: 10,
+            },
+            {
+              in: "query",
+              name: "courseId",
+              required: true,
+              schema: { type: "integer" },
+              example: 1,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Snapshot generado",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: { type: "object" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "403": {
+              description: "No autorizado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/orchestrator/users/{userId}/decide": {
+        post: {
+          tags: ["Orchestrator"],
+          summary: "Ejecutar orquestaci?n",
+          description: "Construye snapshot, consulta modelo y procesa la decisi?n",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "userId",
+              required: true,
+              schema: { type: "integer" },
+              example: 10,
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["courseId"],
+                  properties: {
+                    courseId: { type: "integer", example: 1 },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Decisi?n procesada",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: { type: "object" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": {
+              description: "Decisi?n inv?lida",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/orchestrator/decisions": {
+        post: {
+          tags: ["Orchestrator"],
+          summary: "Registrar decisi?n del modelo",
+          description: "Registra una decisi?n de orquestaci?n para auditor?a (uso interno)",
+          parameters: [
+            {
+              in: "header",
+              name: "x-internal-api-key",
+              required: true,
+              schema: { type: "string" },
+            },
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["userId", "decisionType", "inputSnapshot", "output"],
+                  properties: {
+                    userId: { type: "integer", example: 10 },
+                    decisionType: {
+                      type: "string",
+                      enum: ["next", "reinforce_topic", "generate_content", "update_plan", "feedback"],
+                    },
+                    inputSnapshot: { type: "object" },
+                    output: { type: "object" },
+                    rationale: { type: "string" },
+                    modelVersion: { type: "string" },
+                    correlationId: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": {
+              description: "Decisi?n registrada",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: { type: "object" },
+                    },
+                  },
+                },
+              },
+            },
+            "401": {
+              description: "No autorizado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "503": {
+              description: "API key interna no configurada",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+      "/orchestrator/users/{userId}/decisions": {
+        get: {
+          tags: ["Orchestrator"],
+          summary: "Obtener historial de decisiones",
+          description: "Retorna el historial de decisiones del usuario",
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: "path",
+              name: "userId",
+              required: true,
+              schema: { type: "integer" },
+              example: 10,
+            },
+            {
+              in: "query",
+              name: "limit",
+              required: false,
+              schema: { type: "integer", minimum: 1, maximum: 200 },
+              example: 50,
+            },
+          ],
+          responses: {
+            "200": {
+              description: "Historial obtenido",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: { type: "array", items: { type: "object" } },
+                    },
+                  },
+                },
+              },
+            },
+            "401": {
+              description: "No autenticado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+            "403": {
+              description: "No autorizado",
+              content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+            },
+          },
+        },
+      },
+
     },
   },
   apis: [],
