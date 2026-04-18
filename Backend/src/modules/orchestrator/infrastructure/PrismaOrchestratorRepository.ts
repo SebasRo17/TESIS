@@ -6,12 +6,21 @@ import type {
   SaveDecisionInput,
 } from '../domain/OrchestratorPorts';
 import { PrismaStudyPlansRepository } from '../../study-plans/infrastructure/PrismaStudyPlansRepository';
+import { PrismaStudyRulesRepository } from '../../study-rules/infrastructure/PrismaStudyRulesRepository';
+import { DeterministicStudyRulesResolver } from '../../study-rules/application/DeterministicStudyRulesResolver';
+import { GetApplicableStudyRulesUseCase } from '../../study-rules/application/GetApplicableStudyRulesUseCase';
 
 export class PrismaOrchestratorRepository implements OrchestratorRepository {
   private readonly studyPlansRepo: PrismaStudyPlansRepository;
+  private readonly getApplicableStudyRulesUseCase: GetApplicableStudyRulesUseCase;
 
   constructor(private readonly prisma: PrismaClient) {
     this.studyPlansRepo = new PrismaStudyPlansRepository(prisma);
+    const studyRulesRepo = new PrismaStudyRulesRepository(prisma);
+    this.getApplicableStudyRulesUseCase = new GetApplicableStudyRulesUseCase(
+      studyRulesRepo,
+      new DeterministicStudyRulesResolver()
+    );
   }
 
   async buildSnapshot(input: SnapshotInput): Promise<InputSnapshot | null> {
@@ -85,6 +94,13 @@ export class PrismaOrchestratorRepository implements OrchestratorRepository {
     }));
 
     const plan = await this.studyPlansRepo.findActivePlanByUserAndCourse(input.userId, input.courseId);
+
+    const studyRulesResult = await this.getApplicableStudyRulesUseCase.execute({
+      userId: input.userId,
+      courseId: input.courseId,
+    });
+
+    const studyRules = studyRulesResult.ok ? studyRulesResult.value : [];
 
     const courseLessons = await this.prisma.lessons.findMany({
       where: { course_id: input.courseId, is_active: true },
@@ -189,6 +205,7 @@ export class PrismaOrchestratorRepository implements OrchestratorRepository {
         inProgressLessons,
         completionPercentage,
       },
+      studyRules,
       eligibility,
       lastActions: {
         contentEvents,
@@ -265,4 +282,18 @@ export class PrismaOrchestratorRepository implements OrchestratorRepository {
 
     return !!row;
   }
+
+  async findActiveLessonByTopic(topicId: number): Promise<number | null> {
+    const row = await this.prisma.lessons.findFirst({
+      where: {
+        primary_topic_id: topicId,
+        is_active: true,
+      },
+      orderBy: [{ id: 'asc' }],
+      select: { id: true },
+    });
+
+    return row?.id ?? null;
+  }
 }
+

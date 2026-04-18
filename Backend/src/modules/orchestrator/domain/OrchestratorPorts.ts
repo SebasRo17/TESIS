@@ -28,8 +28,9 @@ export interface OrchestratorRepository {
   getDecisionHistory(userId: number, limit: number): Promise<DecisionHistoryItem[]>;
   topicBelongsToCourse(topicId: number, courseId: number): Promise<boolean>;
   lessonBelongsToCourse(lessonId: number, courseId: number): Promise<boolean>;
+  findActiveLessonByTopic(topicId: number): Promise<number | null>;
 }
 
 export interface OrchestratorModelClient {
   decide(snapshot: InputSnapshot): Promise<OrchestratorDecision>;
-}
+}

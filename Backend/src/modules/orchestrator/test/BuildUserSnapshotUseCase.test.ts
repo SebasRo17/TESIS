@@ -13,6 +13,7 @@ describe('BuildUserSnapshotUseCase', () => {
       getDecisionHistory: vi.fn(),
       topicBelongsToCourse: vi.fn(),
       lessonBelongsToCourse: vi.fn(),
+      findActiveLessonByTopic: vi.fn(),
     };
 
     useCase = new BuildUserSnapshotUseCase(repo);
@@ -21,7 +22,7 @@ describe('BuildUserSnapshotUseCase', () => {
   it('retorna snapshot cuando existe usuario y curso', async () => {
     vi.mocked(repo.buildSnapshot).mockResolvedValue({
       user: { id: 1, email: 'test@example.com', status: 'active' },
-      course: { id: 2, title: 'Matemática' },
+      course: { id: 2, title: 'Matematica' },
       mastery: [],
       recentJournal: [],
       plan: null,
@@ -31,6 +32,7 @@ describe('BuildUserSnapshotUseCase', () => {
         inProgressLessons: 0,
         completionPercentage: 0,
       },
+      studyRules: [],
       eligibility: [],
       lastActions: { contentEvents: [], examAttempts: [] },
     });

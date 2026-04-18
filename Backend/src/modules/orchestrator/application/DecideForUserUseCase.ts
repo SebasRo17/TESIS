@@ -8,6 +8,8 @@ import type {
 import type { OrchestratorModelClient, OrchestratorRepository } from '../domain/OrchestratorPorts';
 import type { CreateStudyPlanUseCase } from '../../study-plans/application/CreateStudyPlanUseCase';
 import type { StudyPlanItemRefType } from '../../study-plans/domain/StudyPlan';
+import type { GetContentVariantsByLessonUseCase } from '../../content/application/GetContentVariantsByLessonUseCase';
+import type { RegisterContentEventUseCase } from '../../content/application/RegisterContentEventUseCase';
 
 export interface DecideForUserInput extends SnapshotInput {}
 
@@ -16,8 +18,8 @@ export interface DecideForUserOutput {
   decision: OrchestratorDecision;
   applied: {
     updatePlan?: unknown;
-    reinforceTopic?: { topicId: number };
-    generateContent?: { lessonId: number };
+    reinforceTopic?: { topicId: number; lessonId: number; variantId: number; eventId: number };
+    generateContent?: { lessonId: number; variantId: number; eventId: number };
   };
   decisionRecordId: number;
 }
@@ -46,17 +48,55 @@ export class DecideForUserUseCase {
   constructor(
     private readonly repo: OrchestratorRepository,
     private readonly modelClient: OrchestratorModelClient,
-    private readonly createStudyPlanUseCase: CreateStudyPlanUseCase
+    private readonly createStudyPlanUseCase: CreateStudyPlanUseCase,
+    private readonly getContentVariantsByLessonUseCase: GetContentVariantsByLessonUseCase,
+    private readonly registerContentEventUseCase: RegisterContentEventUseCase
   ) {}
+
+  private async registerContentInteraction(
+    userId: number,
+    lessonId: number,
+    metadata: Record<string, unknown>
+  ): Promise<Result<{ lessonId: number; variantId: number; eventId: number }, AppError>> {
+    const variantsResult = await this.getContentVariantsByLessonUseCase.execute(lessonId);
+    if (!variantsResult.ok) {
+      return err(variantsResult.error);
+    }
+
+    if (variantsResult.value.length === 0) {
+      return err(new AppError('No active content variants found for the selected lesson', 409));
+    }
+
+    const variant = variantsResult.value[0]!;
+    const eventResult = await this.registerContentEventUseCase.execute({
+      userId,
+      variantId: variant.id,
+      eventType: 'interaction',
+      metadata: {
+        source: 'orchestrator',
+        ...metadata,
+      },
+    });
+
+    if (!eventResult.ok) {
+      return err(eventResult.error);
+    }
+
+    return ok({
+      lessonId,
+      variantId: variant.id,
+      eventId: eventResult.value.id,
+    });
+  }
 
   async execute(input: DecideForUserInput): Promise<Result<DecideForUserOutput, AppError>> {
     try {
       if (!Number.isInteger(input.userId) || input.userId <= 0) {
-        return err(new AppError('userId inválido', 400));
+        return err(new AppError('userId invalido', 400));
       }
 
       if (!Number.isInteger(input.courseId) || input.courseId <= 0) {
-        return err(new AppError('courseId inválido', 400));
+        return err(new AppError('courseId invalido', 400));
       }
 
       const snapshot = await this.repo.buildSnapshot(input);
@@ -70,40 +110,77 @@ export class DecideForUserUseCase {
       if (decision.type === 'reinforce_topic') {
         const topicId = Number((decision.payload as Record<string, unknown>).topicId);
         if (!Number.isInteger(topicId) || topicId <= 0) {
-          return err(new AppError('Decisión inválida: topicId requerido para reinforce_topic', 400));
+          return err(new AppError('Invalid decision: topicId is required for reinforce_topic', 400));
         }
 
         const topicBelongs = await this.repo.topicBelongsToCourse(topicId, input.courseId);
         if (!topicBelongs) {
-          return err(new AppError('Decisión inválida: topicId no pertenece al curso', 400));
+          return err(new AppError('Invalid decision: topicId does not belong to the course', 400));
         }
 
-        applied.reinforceTopic = { topicId };
+        const payloadLessonId = Number((decision.payload as Record<string, unknown>).lessonId);
+        const lessonId = Number.isInteger(payloadLessonId) && payloadLessonId > 0
+          ? payloadLessonId
+          : await this.repo.findActiveLessonByTopic(topicId);
+
+        if (!lessonId) {
+          return err(new AppError('No active lesson found for reinforce_topic', 409));
+        }
+
+        const contentAction = await this.registerContentInteraction(input.userId, lessonId, {
+          decisionType: 'reinforce_topic',
+          topicId,
+          strategy: (decision.payload as Record<string, unknown>).strategy ?? null,
+        });
+
+        if (!contentAction.ok) {
+          return err(contentAction.error);
+        }
+
+        applied.reinforceTopic = {
+          topicId,
+          lessonId: contentAction.value.lessonId,
+          variantId: contentAction.value.variantId,
+          eventId: contentAction.value.eventId,
+        };
       }
 
       if (decision.type === 'generate_content') {
         const lessonId = Number((decision.payload as Record<string, unknown>).lessonId);
         if (!Number.isInteger(lessonId) || lessonId <= 0) {
-          return err(new AppError('Decisión inválida: lessonId requerido para generate_content', 400));
+          return err(new AppError('Invalid decision: lessonId is required for generate_content', 400));
         }
 
         const lessonBelongs = await this.repo.lessonBelongsToCourse(lessonId, input.courseId);
         if (!lessonBelongs) {
-          return err(new AppError('Decisión inválida: lessonId no pertenece al curso', 400));
+          return err(new AppError('Invalid decision: lessonId does not belong to the course', 400));
         }
 
-        applied.generateContent = { lessonId };
+        const contentAction = await this.registerContentInteraction(input.userId, lessonId, {
+          decisionType: 'generate_content',
+          payload: decision.payload,
+        });
+
+        if (!contentAction.ok) {
+          return err(contentAction.error);
+        }
+
+        applied.generateContent = {
+          lessonId: contentAction.value.lessonId,
+          variantId: contentAction.value.variantId,
+          eventId: contentAction.value.eventId,
+        };
       }
 
       if (decision.type === 'update_plan') {
         if (!isRecord(decision.payload) || !Array.isArray(decision.payload.items) || decision.payload.items.length === 0) {
-          return err(new AppError('Decisión inválida: items requeridos para update_plan', 400));
+          return err(new AppError('Invalid decision: items are required for update_plan', 400));
         }
 
         const items = [] as UpdatePlanPayloadItem[];
         for (const item of decision.payload.items) {
           if (!isRecord(item)) {
-            return err(new AppError('Decisión inválida: item de plan inválido', 400));
+            return err(new AppError('Invalid decision: malformed plan item', 400));
           }
 
           const parsedItem: UpdatePlanPayloadItem = {
@@ -159,7 +236,7 @@ export class DecideForUserUseCase {
         decisionRecordId: persisted.id,
       });
     } catch {
-      return err(new AppError('Error al ejecutar orquestación', 500));
+      return err(new AppError('Error al ejecutar orquestacion', 500));
     }
   }
 }

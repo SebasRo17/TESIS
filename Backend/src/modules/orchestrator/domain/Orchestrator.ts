@@ -51,6 +51,16 @@ export interface InputSnapshot {
     inProgressLessons: number;
     completionPercentage: number;
   };
+
+  studyRules: Array<{
+    id: number;
+    name: string;
+    scope: 'global' | 'course' | 'topic' | 'user';
+    priority: number;
+    definition: unknown;
+    appliedScope: 'global' | 'course' | 'topic' | 'user';
+    bindingId: number | null;
+  }>;
   eligibility: Array<{
     lessonId: number;
     requiredTopicId: number;
@@ -62,4 +72,4 @@ export interface InputSnapshot {
     contentEvents: unknown[];
     examAttempts: unknown[];
   };
-}
+}

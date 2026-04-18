@@ -4,6 +4,9 @@ import { createAuthMiddleware } from '../../../auth/interface/http/middlewares/A
 import { JwtTokenService } from '../../../auth/infrastructure/JwtTokenService';
 import { validateRequest } from '../../../assesment/interface/http/middlewares/validation';
 import { CreateStudyPlanUseCase } from '../../../study-plans/application/CreateStudyPlanUseCase';
+import { GetContentVariantsByLessonUseCase } from '../../../content/application/GetContentVariantsByLessonUseCase';
+import { RegisterContentEventUseCase } from '../../../content/application/RegisterContentEventUseCase';
+import { PrismaContentRepository } from '../../../content/infrastructure/PrismaContentRepository';
 import { PrismaStudyPlansRepository } from '../../../study-plans/infrastructure/PrismaStudyPlansRepository';
 import { BuildUserSnapshotUseCase } from '../../application/BuildUserSnapshotUseCase';
 import { DecideForUserUseCase } from '../../application/DecideForUserUseCase';
@@ -30,13 +33,18 @@ export function createOrchestratorRoutes(): Router {
 
   const orchestratorRepo = new PrismaOrchestratorRepository(prisma);
   const studyPlansRepo = new PrismaStudyPlansRepository(prisma);
+  const contentRepo = new PrismaContentRepository(prisma);
 
   const buildSnapshotUseCase = new BuildUserSnapshotUseCase(orchestratorRepo);
   const createStudyPlanUseCase = new CreateStudyPlanUseCase(studyPlansRepo);
+  const getContentVariantsByLessonUseCase = new GetContentVariantsByLessonUseCase(contentRepo);
+  const registerContentEventUseCase = new RegisterContentEventUseCase(contentRepo);
   const decideForUserUseCase = new DecideForUserUseCase(
     orchestratorRepo,
     new RuleBasedOrchestratorModelClient(),
-    createStudyPlanUseCase
+    createStudyPlanUseCase,
+    getContentVariantsByLessonUseCase,
+    registerContentEventUseCase
   );
   const registerDecisionUseCase = new RegisterOrchestratorDecisionUseCase(orchestratorRepo);
   const getDecisionHistoryUseCase = new GetDecisionHistoryUseCase(orchestratorRepo);
@@ -77,4 +85,4 @@ export function createOrchestratorRoutes(): Router {
   );
 
   return router;
-}
+}

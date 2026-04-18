@@ -6,6 +6,8 @@ describe('DecideForUserUseCase', () => {
   let repo: OrchestratorRepository;
   let modelClient: OrchestratorModelClient;
   let createStudyPlanUseCase: { execute: ReturnType<typeof vi.fn> };
+  let getContentVariantsByLessonUseCase: { execute: ReturnType<typeof vi.fn> };
+  let registerContentEventUseCase: { execute: ReturnType<typeof vi.fn> };
   let useCase: DecideForUserUseCase;
 
   beforeEach(() => {
@@ -15,6 +17,7 @@ describe('DecideForUserUseCase', () => {
       getDecisionHistory: vi.fn(),
       topicBelongsToCourse: vi.fn(),
       lessonBelongsToCourse: vi.fn(),
+      findActiveLessonByTopic: vi.fn(),
     };
 
     modelClient = {
@@ -25,7 +28,21 @@ describe('DecideForUserUseCase', () => {
       execute: vi.fn(),
     };
 
-    useCase = new DecideForUserUseCase(repo, modelClient, createStudyPlanUseCase as any);
+    getContentVariantsByLessonUseCase = {
+      execute: vi.fn(),
+    };
+
+    registerContentEventUseCase = {
+      execute: vi.fn(),
+    };
+
+    useCase = new DecideForUserUseCase(
+      repo,
+      modelClient,
+      createStudyPlanUseCase as any,
+      getContentVariantsByLessonUseCase as any,
+      registerContentEventUseCase as any
+    );
 
     vi.mocked(repo.buildSnapshot).mockResolvedValue({
       user: { id: 5, email: 'user@test.com', status: 'active' },
@@ -39,6 +56,7 @@ describe('DecideForUserUseCase', () => {
         inProgressLessons: 0,
         completionPercentage: 0,
       },
+      studyRules: [],
       eligibility: [],
       lastActions: { contentEvents: [], examAttempts: [] },
     });
@@ -71,7 +89,7 @@ describe('DecideForUserUseCase', () => {
     }
   });
 
-  it('aplica update_plan y persiste decisión tipo plan', async () => {
+  it('aplica update_plan y persiste decision tipo plan', async () => {
     vi.mocked(modelClient.decide).mockResolvedValue({
       type: 'update_plan',
       rationale: 'Replanificar',
@@ -126,5 +144,50 @@ describe('DecideForUserUseCase', () => {
     expect(repo.saveDecision).toHaveBeenCalledWith(
       expect.objectContaining({ decisionType: 'plan' })
     );
+  });
+
+  it('ejecuta reinforce_topic delegando a content', async () => {
+    vi.mocked(modelClient.decide).mockResolvedValue({
+      type: 'reinforce_topic',
+      payload: { topicId: 12, strategy: 'practice_first' },
+    });
+
+    vi.mocked(repo.topicBelongsToCourse).mockResolvedValue(true);
+    vi.mocked(repo.findActiveLessonByTopic).mockResolvedValue(33);
+    vi.mocked(getContentVariantsByLessonUseCase.execute).mockResolvedValue({
+      ok: true,
+      value: [
+        {
+          id: 900,
+          lessonId: 33,
+          modality: 'reading',
+          difficultyProfile: null,
+          readingLevel: null,
+          estimatedMinutes: 10,
+          version: 1,
+        },
+      ],
+    });
+    vi.mocked(registerContentEventUseCase.execute).mockResolvedValue({
+      ok: true,
+      value: {
+        id: 700,
+        userId: 5,
+        lessonId: 33,
+        variantId: 900,
+        eventType: 'interaction',
+      },
+    });
+
+    const result = await useCase.execute({ userId: 5, courseId: 2 });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.applied.reinforceTopic?.topicId).toBe(12);
+      expect(result.value.applied.reinforceTopic?.variantId).toBe(900);
+    }
+
+    expect(getContentVariantsByLessonUseCase.execute).toHaveBeenCalledWith(33);
+    expect(registerContentEventUseCase.execute).toHaveBeenCalledTimes(1);
   });
 });
