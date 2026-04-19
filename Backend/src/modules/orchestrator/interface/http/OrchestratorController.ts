@@ -29,7 +29,9 @@ export class OrchestratorController {
       }
 
       const { userId } = req.params as unknown as UserIdParams;
-      const { courseId } = req.query as unknown as SnapshotQuery;
+      const { courseId } = (
+        (req as AuthenticatedRequest & { validatedQuery?: SnapshotQuery }).validatedQuery ?? req.query
+      ) as unknown as SnapshotQuery;
 
       if (req.user.id !== userId) {
         res.status(403).json({ error: 'No autorizado para consultar este usuario' });
@@ -110,7 +112,9 @@ export class OrchestratorController {
       }
 
       const { userId } = req.params as unknown as UserIdParams;
-      const { limit } = req.query as unknown as DecisionHistoryQuery;
+      const { limit } = (
+        (req as AuthenticatedRequest & { validatedQuery?: DecisionHistoryQuery }).validatedQuery ?? req.query
+      ) as unknown as DecisionHistoryQuery;
 
       if (req.user.id !== userId) {
         res.status(403).json({ error: 'No autorizado para consultar este usuario' });

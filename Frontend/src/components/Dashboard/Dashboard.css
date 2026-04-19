@@ -1,0 +1,281 @@
+.dashboard {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 3rem;
+}
+
+/* HEADER */
+.dashboard__header {
+  margin-bottom: 2rem;
+}
+
+.dashboard__title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.25rem;
+}
+
+.dashboard__subtitle {
+  color: var(--text-muted);
+}
+
+/* KPI CARDS */
+
+.dashboard__kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.dashboard__kpi-card {
+  border-radius: var(--card-radius-md);
+  padding: 1.25rem 1.5rem;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow-soft);
+}
+
+.dashboard__kpi-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  opacity: 0.95;
+}
+
+.dashboard__kpi-value {
+  font-size: 1.7rem;
+  font-weight: 700;
+  margin-top: 0.25rem;
+}
+
+.dashboard__kpi-icon {
+  opacity: 0.9;
+}
+
+/* Colores de KPI */
+.dashboard__kpi-card--blue {
+  background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+}
+
+.dashboard__kpi-card--green {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+}
+
+.dashboard__kpi-card--orange {
+  background: linear-gradient(135deg, #ea580c, #f97316);
+}
+
+.dashboard__kpi-card--purple {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+}
+
+/* TITULOS DE SECCION */
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 1rem;
+}
+
+/* HOJA DE RUTA SEMANAL */
+
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.week-card {
+  background: #fff;
+  border-radius: var(--card-radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: 1.75rem 1.75rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.week-tag {
+  position: absolute;
+  right: 1.5rem;
+  top: 1.25rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.week-title {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.week-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--purple), var(--purple-deep));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.week-heading {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.week-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.week-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 1rem;
+}
+
+.week-progress-bar {
+  margin-top: 0.4rem;
+  height: 6px;
+  border-radius: 999px;
+  background: #edf2ff;
+  overflow: hidden;
+}
+
+.week-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #a855f7, #6366f1);
+}
+
+.week-meta {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.6rem;
+}
+
+.week-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.week-tasks {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+}
+
+.week-tasks-title {
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.week-task-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+}
+
+.week-task-item + .week-task-item {
+  margin-top: 0.1rem;
+}
+
+.week-task-done {
+  text-decoration: line-through;
+  color: #9ca3af;
+}
+
+.week-footer {
+  margin-top: 1.2rem;
+}
+
+.week-plan-button {
+  width: 100%;
+  border: none;
+  border-radius: 999px;
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #7c3aed, #3b82f6);
+  color: #fff;
+  cursor: pointer;
+}
+
+/* MATERIAS */
+
+.subjects-section {
+  margin-bottom: 2.5rem;
+}
+
+.dashboard__subjects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.5rem;
+}
+
+/* ACCIONES RÁPIDAS */
+
+.quick-section {
+  margin-bottom: 2.5rem;
+}
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1.1fr 1.4fr;
+  gap: 1.25rem;
+}
+
+.quick-card {
+  background: #fff;
+  border-radius: var(--card-radius-lg);
+  padding: 1.25rem 1.5rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+}
+
+.quick-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 0.25rem;
+}
+
+.quick-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* tarjeta simulacro general */
+
+.quick-card-sim {
+  background: linear-gradient(135deg, #7c3aed, #3b82f6);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.quick-card-sim .quick-title {
+  color: #fff;
+}
+
+.quick-card-sim .quick-subtitle {
+  color: rgba(255, 255, 255, 0.9);
+}

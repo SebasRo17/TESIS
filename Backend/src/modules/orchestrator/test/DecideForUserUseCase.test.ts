@@ -146,6 +146,76 @@ describe('DecideForUserUseCase', () => {
     );
   });
 
+  it('aplica plan en formato Steven y no cae en fallback reinforce_topic', async () => {
+    vi.mocked(modelClient.decide).mockResolvedValue({
+      decision_type: 'plan',
+      plan: {
+        items: [
+          {
+            type: 'lesson',
+            id: 21,
+            priority: 0.9,
+          },
+        ],
+      },
+      confidence: 0.85,
+      model_version: 'qwen2.5:14b',
+      payload: {},
+    } as any);
+
+    vi.mocked(createStudyPlanUseCase.execute).mockResolvedValue({
+      ok: true,
+      value: {
+        id: 101,
+        userId: 5,
+        version: 2,
+        state: 'active',
+        source: 'orchestrator',
+        createdAt: '2026-03-09T00:00:00.000Z',
+        activatedAt: '2026-03-09T00:00:00.000Z',
+        items: [],
+      },
+    });
+
+    vi.mocked(repo.saveDecision).mockResolvedValue({
+      id: 52,
+      userId: 5,
+      decisionType: 'plan',
+      inputSnapshot: {},
+      output: {},
+      rationale: null,
+      modelVersion: 'qwen2.5:14b',
+      correlationId: null,
+      createdAt: new Date('2026-03-09T00:00:00Z'),
+    });
+
+    const result = await useCase.execute({ userId: 5, courseId: 2 });
+
+    expect(result.ok).toBe(true);
+    expect(createStudyPlanUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 5,
+        courseId: 2,
+        items: [
+          expect.objectContaining({
+            contentRefType: 'lesson',
+            contentRefId: 21,
+            type: 'lesson',
+            priority: 0.9,
+            orderN: 1,
+          }),
+        ],
+      })
+    );
+    expect(repo.findActiveLessonByTopic).not.toHaveBeenCalled();
+    expect(repo.saveDecision).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decisionType: 'plan',
+        modelVersion: 'qwen2.5:14b',
+      })
+    );
+  });
+
   it('ejecuta reinforce_topic delegando a content', async () => {
     vi.mocked(modelClient.decide).mockResolvedValue({
       type: 'reinforce_topic',

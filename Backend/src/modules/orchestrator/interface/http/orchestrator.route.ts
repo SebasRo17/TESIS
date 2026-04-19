@@ -13,7 +13,7 @@ import { DecideForUserUseCase } from '../../application/DecideForUserUseCase';
 import { GetDecisionHistoryUseCase } from '../../application/GetDecisionHistoryUseCase';
 import { RegisterOrchestratorDecisionUseCase } from '../../application/RegisterOrchestratorDecisionUseCase';
 import { PrismaOrchestratorRepository } from '../../infrastructure/PrismaOrchestratorRepository';
-import { RuleBasedOrchestratorModelClient } from '../../infrastructure/RuleBasedOrchestratorModelClient';
+import { HttpOrchestratorModelClient } from '../../infrastructure/HttpOrchestratorModelClient';
 import { OrchestratorController } from './OrchestratorController';
 import {
   DecideBodySchema,
@@ -41,7 +41,7 @@ export function createOrchestratorRoutes(): Router {
   const registerContentEventUseCase = new RegisterContentEventUseCase(contentRepo);
   const decideForUserUseCase = new DecideForUserUseCase(
     orchestratorRepo,
-    new RuleBasedOrchestratorModelClient(),
+    new HttpOrchestratorModelClient(),
     createStudyPlanUseCase,
     getContentVariantsByLessonUseCase,
     registerContentEventUseCase

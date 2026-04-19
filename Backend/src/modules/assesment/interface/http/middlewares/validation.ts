@@ -21,7 +21,8 @@ export const validateRequest = (schema: {
       }
 
       if (schema.query) {
-        req.query = await schema.query.parseAsync(req.query) as any;
+        const parsedQuery = await schema.query.parseAsync(req.query) as Record<string, unknown>;
+        (req as Request & { validatedQuery?: Record<string, unknown> }).validatedQuery = parsedQuery;
       }
 
       next();

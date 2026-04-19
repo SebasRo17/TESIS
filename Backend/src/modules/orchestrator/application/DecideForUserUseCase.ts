@@ -35,13 +35,129 @@ interface UpdatePlanPayloadItem {
 }
 
 function mapDecisionType(type: OrchestratorDecisionType): 'plan' | 'next' | 'feedback' {
-  if (type === 'update_plan') return 'plan';
+  if (type === 'update_plan' || type === 'plan') return 'plan';
   if (type === 'next') return 'next';
   return 'feedback';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isStudyPlanItemRefType(value: unknown): value is StudyPlanItemRefType {
+  return value === 'lesson'
+    || value === 'variant'
+    || value === 'item'
+    || value === 'topic'
+    || value === 'exam';
+}
+
+function getDecisionType(decision: OrchestratorDecision): OrchestratorDecisionType | null {
+  const decisionRecord = decision as unknown as Record<string, unknown>;
+  const rawType = typeof decisionRecord.type === 'string'
+    ? decisionRecord.type
+    : typeof decisionRecord.decision_type === 'string'
+      ? decisionRecord.decision_type
+      : null;
+
+  if (
+    rawType === 'plan'
+    || rawType === 'next'
+    || rawType === 'reinforce_topic'
+    || rawType === 'generate_content'
+    || rawType === 'update_plan'
+    || rawType === 'feedback'
+  ) {
+    return rawType;
+  }
+
+  return null;
+}
+
+function getDecisionStringField(
+  decision: OrchestratorDecision,
+  camelCaseField: string,
+  snakeCaseField: string
+): string | null {
+  const decisionRecord = decision as unknown as Record<string, unknown>;
+  const camelCaseValue = decisionRecord[camelCaseField];
+  if (typeof camelCaseValue === 'string' && camelCaseValue.trim() !== '') {
+    return camelCaseValue;
+  }
+
+  const snakeCaseValue = decisionRecord[snakeCaseField];
+  if (typeof snakeCaseValue === 'string' && snakeCaseValue.trim() !== '') {
+    return snakeCaseValue;
+  }
+
+  return null;
+}
+
+function extractPlanItems(decision: OrchestratorDecision): Result<UpdatePlanPayloadItem[], AppError> {
+  const decisionRecord = decision as unknown as Record<string, unknown>;
+  const payload = isRecord(decisionRecord.payload) ? decisionRecord.payload : null;
+  const plan = isRecord(decisionRecord.plan)
+    ? decisionRecord.plan
+    : payload && isRecord(payload.plan)
+      ? payload.plan
+      : null;
+
+  const rawItems = Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(plan?.items)
+      ? plan.items
+      : null;
+
+  if (!rawItems || rawItems.length === 0) {
+    return err(new AppError('Invalid decision: plan.items are required for plan decisions', 400));
+  }
+
+  try {
+    const items: UpdatePlanPayloadItem[] = rawItems.map((item, index) => {
+      if (!isRecord(item)) {
+        throw new AppError('Invalid decision: malformed plan item', 400);
+      }
+
+      const contentRefType = item.contentRefType ?? item.content_ref_type ?? item.type;
+      if (!isStudyPlanItemRefType(contentRefType)) {
+        throw new AppError('Invalid decision: unsupported contentRefType in plan item', 400);
+      }
+
+      const contentRefId = Number(item.contentRefId ?? item.content_ref_id ?? item.id);
+      if (!Number.isInteger(contentRefId) || contentRefId <= 0) {
+        throw new AppError('Invalid decision: contentRefId is required for plan items', 400);
+      }
+
+      const priority = Number(item.priority ?? 0.5);
+      if (!Number.isFinite(priority) || priority <= 0) {
+        throw new AppError('Invalid decision: priority must be a positive number', 400);
+      }
+
+      const orderN = Number(item.orderN ?? item.order_n ?? (index + 1));
+      if (!Number.isInteger(orderN) || orderN <= 0) {
+        throw new AppError('Invalid decision: orderN must be a positive integer', 400);
+      }
+
+      return {
+        contentRefType,
+        contentRefId,
+        type: String(item.type ?? contentRefType),
+        priority,
+        orderN,
+        ...(item.dueAt !== undefined ? { dueAt: String(item.dueAt) } : {}),
+        ...(item.due_at !== undefined ? { dueAt: String(item.due_at) } : {}),
+        ...(item.metadata !== undefined ? { metadata: item.metadata } : {}),
+      };
+    });
+
+    return ok(items);
+  } catch (error) {
+    if (error instanceof AppError) {
+      return err(error);
+    }
+
+    return err(new AppError('Invalid decision: malformed plan payload', 400));
+  }
 }
 
 export class DecideForUserUseCase {
@@ -105,9 +221,14 @@ export class DecideForUserUseCase {
       }
 
       const decision = await this.modelClient.decide(snapshot);
+      const normalizedDecisionType = getDecisionType(decision);
+      if (!normalizedDecisionType) {
+        return err(new AppError('Invalid decision: unsupported decision type', 400));
+      }
+
       const applied: DecideForUserOutput['applied'] = {};
 
-      if (decision.type === 'reinforce_topic') {
+      if (normalizedDecisionType === 'reinforce_topic') {
         const topicId = Number((decision.payload as Record<string, unknown>).topicId);
         if (!Number.isInteger(topicId) || topicId <= 0) {
           return err(new AppError('Invalid decision: topicId is required for reinforce_topic', 400));
@@ -145,7 +266,7 @@ export class DecideForUserUseCase {
         };
       }
 
-      if (decision.type === 'generate_content') {
+      if (normalizedDecisionType === 'generate_content') {
         const lessonId = Number((decision.payload as Record<string, unknown>).lessonId);
         if (!Number.isInteger(lessonId) || lessonId <= 0) {
           return err(new AppError('Invalid decision: lessonId is required for generate_content', 400));
@@ -172,28 +293,10 @@ export class DecideForUserUseCase {
         };
       }
 
-      if (decision.type === 'update_plan') {
-        if (!isRecord(decision.payload) || !Array.isArray(decision.payload.items) || decision.payload.items.length === 0) {
-          return err(new AppError('Invalid decision: items are required for update_plan', 400));
-        }
-
-        const items = [] as UpdatePlanPayloadItem[];
-        for (const item of decision.payload.items) {
-          if (!isRecord(item)) {
-            return err(new AppError('Invalid decision: malformed plan item', 400));
-          }
-
-          const parsedItem: UpdatePlanPayloadItem = {
-            contentRefType: item.contentRefType as StudyPlanItemRefType,
-            contentRefId: Number(item.contentRefId),
-            type: String(item.type ?? ''),
-            priority: Number(item.priority),
-            orderN: Number(item.orderN),
-            ...(item.dueAt !== undefined ? { dueAt: String(item.dueAt) } : {}),
-            ...(item.metadata !== undefined ? { metadata: item.metadata } : {}),
-          };
-
-          items.push(parsedItem);
+      if (normalizedDecisionType === 'plan' || normalizedDecisionType === 'update_plan') {
+        const planItemsResult = extractPlanItems(decision);
+        if (!planItemsResult.ok) {
+          return err(planItemsResult.error);
         }
 
         const createPlanResult = await this.createStudyPlanUseCase.execute({
@@ -201,7 +304,7 @@ export class DecideForUserUseCase {
           courseId: input.courseId,
           source: 'orchestrator',
           state: 'active',
-          items: items.map((item) => ({
+          items: planItemsResult.value.map((item) => ({
             contentRefType: item.contentRefType,
             contentRefId: item.contentRefId,
             type: item.type,
@@ -221,12 +324,12 @@ export class DecideForUserUseCase {
 
       const persisted = await this.repo.saveDecision({
         userId: input.userId,
-        decisionType: mapDecisionType(decision.type),
+        decisionType: mapDecisionType(normalizedDecisionType),
         inputSnapshot: snapshot,
         output: decision,
-        rationale: decision.rationale ?? null,
-        modelVersion: decision.modelVersion ?? null,
-        correlationId: decision.correlationId ?? null,
+        rationale: getDecisionStringField(decision, 'rationale', 'rationale'),
+        modelVersion: getDecisionStringField(decision, 'modelVersion', 'model_version'),
+        correlationId: getDecisionStringField(decision, 'correlationId', 'correlation_id'),
       });
 
       return ok({

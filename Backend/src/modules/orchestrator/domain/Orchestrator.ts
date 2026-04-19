@@ -1,4 +1,5 @@
 export type OrchestratorDecisionType =
+  | 'plan'
   | 'next'
   | 'reinforce_topic'
   | 'generate_content'

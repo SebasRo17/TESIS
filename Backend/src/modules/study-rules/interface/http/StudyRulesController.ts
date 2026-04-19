@@ -31,7 +31,9 @@ export class StudyRulesController {
 
   async getApplicableRules(req: Request, res: Response): Promise<void> {
     try {
-      const query = req.query as unknown as ApplicableRulesQuery;
+      const query = (
+        (req as Request & { validatedQuery?: ApplicableRulesQuery }).validatedQuery ?? req.query
+      ) as unknown as ApplicableRulesQuery;
       const input = {
         ...(query.courseId !== undefined ? { courseId: query.courseId } : {}),
         ...(query.topicId !== undefined ? { topicId: query.topicId } : {}),

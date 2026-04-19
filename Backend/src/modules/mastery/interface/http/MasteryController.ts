@@ -78,7 +78,9 @@ export class MasteryController {
       }
 
       const { topicId } = req.params as unknown as TopicIdParams;
-      const { limit, offset } = req.query as unknown as MasteryJournalQuery;
+      const { limit, offset } = (
+        (req as AuthenticatedRequest & { validatedQuery?: MasteryJournalQuery }).validatedQuery ?? req.query
+      ) as unknown as MasteryJournalQuery;
 
       const result = await this.getTopicMasteryJournalUseCase.execute({
         userId: req.user.id,

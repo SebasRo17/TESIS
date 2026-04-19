@@ -22,7 +22,7 @@ export const DecideBodySchema = z.object({
 
 export const RegisterDecisionBodySchema = z.object({
   userId: z.number().int().positive(),
-  decisionType: z.enum(['next', 'reinforce_topic', 'generate_content', 'update_plan', 'feedback']),
+  decisionType: z.enum(['plan', 'next', 'reinforce_topic', 'generate_content', 'update_plan', 'feedback']),
   inputSnapshot: z.unknown(),
   output: z.unknown(),
   rationale: z.string().optional(),

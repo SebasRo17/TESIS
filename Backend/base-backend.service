@@ -1,0 +1,16 @@
+[Unit]
+Description=BASE Backend API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dtic2025
+WorkingDirectory=/home/dtic2025/DTIC/BASE/backend/TESIS/Backend
+Environment=NODE_ENV=development
+ExecStart=/usr/bin/node /home/dtic2025/DTIC/BASE/backend/TESIS/Backend/dist/index.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

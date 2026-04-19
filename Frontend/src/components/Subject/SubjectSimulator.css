@@ -1,0 +1,80 @@
+.simulator-container {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.simulator-icon-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.simulator-icon {
+  color: #3b82f6;
+  margin-bottom: 0.5rem;
+}
+
+.simulator-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.simulator-subtitle {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.simulator-info {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.sim-box {
+  padding: 1rem 1.25rem;
+  border-radius: 0.8rem;
+  text-align: center;
+  min-width: 120px;
+}
+
+.sim-box.blue {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.sim-box.green {
+  background: #ecfdf5;
+  color: #16a34a;
+}
+
+.sim-box.orange {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.big {
+  font-weight: 700;
+  font-size: 1.4rem;
+}
+
+.simulator-btn {
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.8rem 1.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.simulator-btn:hover {
+  opacity: 0.9;
+}
