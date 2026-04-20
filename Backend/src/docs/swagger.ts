@@ -45,6 +45,44 @@ const options = {
                     updatedAt: { type: "string", format: "date-time" },
                   },
                 },
+                ExamItemOptionResponse: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string", example: "a" },
+                    text: { type: "string", example: "x + 2" },
+                  },
+                },
+                ExamItemResponse: {
+                  type: "object",
+                  properties: {
+                    id: { type: "number", example: 5 },
+                    topicId: { type: "number", example: 2 },
+                    type: { type: "string", enum: ["single_choice", "multi_choice", "open"], example: "single_choice" },
+                    stem: { type: "string", example: "Resuelve el valor de x" },
+                    options: {
+                      type: "array",
+                      nullable: true,
+                      items: { $ref: "#/components/schemas/ExamItemOptionResponse" },
+                    },
+                    difficulty: { type: "number", format: "float", example: 0.45 },
+                    orderN: { type: "number", example: 1 },
+                    weight: { type: "number", format: "float", example: 1 },
+                  },
+                },
+                ExamWithItemsResponse: {
+                  type: "object",
+                  properties: {
+                    id: { type: "number", example: 1 },
+                    title: { type: "string", example: "Simulador de Algebra" },
+                    mode: { type: "string", enum: ["diagnostic", "mock", "final"], example: "mock" },
+                    timeLimitSec: { type: "number", example: 1800 },
+                    version: { type: "number", example: 2 },
+                    items: {
+                      type: "array",
+                      items: { $ref: "#/components/schemas/ExamItemResponse" },
+                    },
+                  },
+                },
                 ExamAttemptResponse: {
                   type: "object",
                   properties: {
@@ -378,6 +416,25 @@ const options = {
                     content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean" }, data: { type: "array", items: { $ref: "#/components/schemas/ExamResponse" } } } } } },
                   },
                   "401": { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+                },
+              },
+            },
+            "/exams/{examId}/items": {
+              get: {
+                tags: ["Assessment"],
+                summary: "Obtener preguntas públicas de un examen",
+                description: "Retorna los ítems del examen en orden sin exponer answerKey ni flags de corrección",
+                security: [{ bearerAuth: [] }],
+                parameters: [
+                  { in: "path", name: "examId", required: true, schema: { type: "integer" }, example: 1 },
+                ],
+                responses: {
+                  "200": {
+                    description: "Preguntas del examen",
+                    content: { "application/json": { schema: { type: "object", properties: { success: { type: "boolean" }, data: { $ref: "#/components/schemas/ExamWithItemsResponse" } } } } },
+                  },
+                  "401": { description: "No autenticado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+                  "404": { description: "Examen no encontrado", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
                 },
               },
             },

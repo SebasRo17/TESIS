@@ -10,6 +10,15 @@ export const GetExamsByCourseParamsSchema = z.object({
 export type GetExamsByCourseParams = z.infer<typeof GetExamsByCourseParamsSchema>;
 
 /**
+ * DTO para obtener ítems públicos de un examen
+ */
+export const GetExamItemsParamsSchema = z.object({
+  examId: z.string().regex(/^\d+$/).transform(Number),
+});
+
+export type GetExamItemsParams = z.infer<typeof GetExamItemsParamsSchema>;
+
+/**
  * DTO para iniciar intento de examen
  */
 export const StartExamAttemptParamsSchema = z.object({
@@ -65,6 +74,31 @@ export interface ExamDTO {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ExamItemOptionDTO {
+  id: string;
+  text: string;
+}
+
+export interface ExamItemDTO {
+  id: number;
+  topicId: number;
+  type: string;
+  stem: string;
+  options: ExamItemOptionDTO[] | null;
+  difficulty: number;
+  orderN: number;
+  weight: number;
+}
+
+export interface ExamWithItemsDTO {
+  id: number;
+  title: string;
+  mode: string;
+  timeLimitSec: number;
+  version: number;
+  items: ExamItemDTO[];
 }
 
 export interface ExamAttemptDTO {

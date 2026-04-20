@@ -1,27 +1,33 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { GetExamsByCourseUseCase } from '../../application/GetExamsByCourseUseCase';
+import type { GetExamItemsUseCase } from '../../application/GetExamItemsUseCase';
 import type { StartExamAttemptUseCase } from '../../application/StartExamAttemptUseCase';
 import type { SubmitItemResponseUseCase } from '../../application/SubmitItemResponseUseCase';
 import type { FinishExamAttemptUseCase } from '../../application/FinishExamAttemptUseCase';
 import type { GetExamAttemptDetailUseCase } from '../../application/GetExamAttemptDetailUseCase';
 import type {
   GetExamsByCourseParams,
+  GetExamItemsParams,
   StartExamAttemptParams,
   SubmitItemResponseParams,
   SubmitItemResponseBody,
   FinishExamAttemptParams,
   GetExamAttemptDetailParams,
   ExamDTO,
+  ExamItemDTO,
+  ExamWithItemsDTO,
   ExamAttemptDTO,
   ItemResponseDTO,
   ExamAttemptDetailDTO,
 } from './dto/AssessmentDTO';
 import type { Exam } from '../../domain/Exam';
 import type { ExamAttempt, ItemResponse, ExamAttemptWithDetails } from '../../domain/ExamAttempt';
+import type { PublicExamItem, PublicExamWithItems } from '../../application/GetExamItemsUseCase';
 
 export class AssessmentController {
   constructor(
     private readonly getExamsByCourseUseCase: GetExamsByCourseUseCase,
+    private readonly getExamItemsUseCase: GetExamItemsUseCase,
     private readonly startExamAttemptUseCase: StartExamAttemptUseCase,
     private readonly submitItemResponseUseCase: SubmitItemResponseUseCase,
     private readonly finishExamAttemptUseCase: FinishExamAttemptUseCase,
@@ -39,6 +45,27 @@ export class AssessmentController {
       const exams = await this.getExamsByCourseUseCase.execute(courseId);
 
       const response: ExamDTO[] = exams.map(this.toExamDTO);
+
+      res.status(200).json({
+        success: true,
+        data: response,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /exams/:examId/items
+   * Obtener preguntas públicas de un examen
+   */
+  async getExamItems(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { examId } = req.params as unknown as GetExamItemsParams;
+
+      const exam = await this.getExamItemsUseCase.execute(examId);
+
+      const response: ExamWithItemsDTO = this.toExamWithItemsDTO(exam);
 
       res.status(200).json({
         success: true,
@@ -192,6 +219,30 @@ export class AssessmentController {
       ...this.toExamAttemptDTO(attempt),
       exam: attempt.exam,
       responses: attempt.responses.map(this.toItemResponseDTO),
+    };
+  }
+
+  private toExamWithItemsDTO(exam: PublicExamWithItems): ExamWithItemsDTO {
+    return {
+      id: exam.id,
+      title: exam.title,
+      mode: exam.mode,
+      timeLimitSec: exam.timeLimitSec,
+      version: exam.version,
+      items: exam.items.map((item) => this.toExamItemDTO(item)),
+    };
+  }
+
+  private toExamItemDTO(item: PublicExamItem): ExamItemDTO {
+    return {
+      id: item.id,
+      topicId: item.topicId,
+      type: item.type,
+      stem: item.stem,
+      options: item.options,
+      difficulty: item.difficulty,
+      orderN: item.orderN,
+      weight: item.weight,
     };
   }
 }
