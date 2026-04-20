@@ -5,6 +5,7 @@ import { createAuthMiddleware } from '../../../auth/interface/http/middlewares/A
 import { JwtTokenService } from '../../../auth/infrastructure/JwtTokenService';
 import {
   GetExamsByCourseParamsSchema,
+  GetExamItemsParamsSchema,
   StartExamAttemptParamsSchema,
   SubmitItemResponseParamsSchema,
   SubmitItemResponseBodySchema,
@@ -20,6 +21,7 @@ import { PrismaItemResponseRepository } from '../../infrastructure/PrismaItemRes
 
 // Import use cases
 import { GetExamsByCourseUseCase } from '../../application/GetExamsByCourseUseCase';
+import { GetExamItemsUseCase } from '../../application/GetExamItemsUseCase';
 import { StartExamAttemptUseCase } from '../../application/StartExamAttemptUseCase';
 import { SubmitItemResponseUseCase } from '../../application/SubmitItemResponseUseCase';
 import { FinishExamAttemptUseCase } from '../../application/FinishExamAttemptUseCase';
@@ -41,6 +43,7 @@ export const createAssessmentRouter = (): Router => {
 
   // Inicializar casos de uso
   const getExamsByCourseUseCase = new GetExamsByCourseUseCase(examRepository);
+  const getExamItemsUseCase = new GetExamItemsUseCase(examRepository, itemRepository);
   const startExamAttemptUseCase = new StartExamAttemptUseCase(
     examRepository,
     examAttemptRepository
@@ -61,6 +64,7 @@ export const createAssessmentRouter = (): Router => {
   // Inicializar controlador
   const controller = new AssessmentController(
     getExamsByCourseUseCase,
+    getExamItemsUseCase,
     startExamAttemptUseCase,
     submitItemResponseUseCase,
     finishExamAttemptUseCase,
@@ -73,6 +77,13 @@ export const createAssessmentRouter = (): Router => {
     authMiddleware,
     validateRequest({ params: GetExamsByCourseParamsSchema }),
     controller.getExamsByCourse.bind(controller)
+  );
+
+  router.get(
+    '/exams/:examId/items',
+    authMiddleware,
+    validateRequest({ params: GetExamItemsParamsSchema }),
+    controller.getExamItems.bind(controller)
   );
 
   router.post(
