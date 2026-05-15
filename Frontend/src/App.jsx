@@ -16,6 +16,7 @@ import ProfilePage from "./components/Auth/MeProfile";
 
 import Dashboard from "./components/Dashboard/Dashboard";
 import SubjectView from "./components/Subject/SubjectView";
+import SubjectSimulator from "./components/Subject/SubjectSimulator";
 import StudyPlanDetail from "./components/StudyPlan/StudyPlanDetail";
 import GeneralSimulator from "./components/Simulator/GeneralSimulator";
 
@@ -23,7 +24,7 @@ import ProtectedRoute from "./components/Routes/ProtectedRoute";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 
-import { getCourseByIdRequest } from "./services/coursesService";
+import { getCourseBySlugRequest } from "./services/coursesService";
 
 function AuthShell({ children }) {
   return (
@@ -94,7 +95,7 @@ function StudyPlanRoute() {
 }
 
 function SubjectRoute() {
-  const { subjectId } = useParams();
+  const { slug } = useParams();
   const nav = useNavigate();
 
   const [course, setCourse] = useState(null);
@@ -109,7 +110,7 @@ function SubjectRoute() {
         setLoading(true);
         setErr(null);
 
-        const data = await getCourseByIdRequest(Number(subjectId));
+        const data = await getCourseBySlugRequest(slug);
 
         if (!alive) return;
         setCourse(data);
@@ -130,7 +131,7 @@ function SubjectRoute() {
     return () => {
       alive = false;
     };
-  }, [subjectId]);
+  }, [slug]);
 
   if (loading) {
     return (
@@ -170,6 +171,47 @@ function SubjectRoute() {
   );
 }
 
+function SubjectSimulatorRoute() {
+  const { slug } = useParams();
+  const nav = useNavigate();
+  const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+
+    const load = async () => {
+      try {
+        setLoading(true);
+        const data = await getCourseBySlugRequest(slug);
+        if (!alive) return;
+        setCourse(data);
+      } catch (error) {
+        if (!alive) return;
+        setCourse(null);
+      } finally {
+        if (!alive) return;
+        setLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      alive = false;
+    };
+  }, [slug]);
+
+  return (
+    <SubjectSimulator
+      variant="window"
+      course={loading ? null : course}
+      slug={slug}
+      onClose={() => nav(`/app/subject/${slug}`)}
+    />
+  );
+}
+
 function GeneralSimulatorRoute() {
   const nav = useNavigate();
   return <GeneralSimulator onBack={() => nav("/app/dashboard")} />;
@@ -205,13 +247,14 @@ export default function App() {
           }
         />
         <Route
-          path="subject/:subjectId"
+          path="subject/:slug"
           element={
             <AppLayout>
               <SubjectRoute />
             </AppLayout>
           }
         />
+        <Route path="subject/:slug/simulator" element={<SubjectSimulatorRoute />} />
         <Route
           path="profile"
           element={

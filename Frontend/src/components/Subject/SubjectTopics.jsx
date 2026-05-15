@@ -8,29 +8,40 @@ import {
   BookOpen,
   PlayCircle,
   Layers,
+  LineChart,
 } from "lucide-react";
 
 import { getCourseTopicsTree, getTopicById } from "../../services/topicsService";
 import { getLessonsByCourse, getLessonsByTopic } from "../../services/lessonsService";
+import {
+  getTopicMastery,
+  getTopicMasteryJournal,
+} from "../../services/masteryService";
 
 /**
  * Helpers
  */
 function flattenTree(nodes) {
   const out = [];
-  const walk = (arr) => {
+  const walk = (arr, depth = 0) => {
     for (const n of arr) {
-      out.push(n);
-      if (n.children?.length) walk(n.children);
+      out.push({ ...n, _depth: depth, _childrenCount: n.children?.length || 0 });
+      if (n.children?.length) walk(n.children, depth + 1);
     }
   };
-  walk(nodes ?? []);
+  walk(nodes ?? [], 0);
   return out;
 }
 
 function clamp01(n) {
   if (Number.isNaN(n)) return 0;
   return Math.max(0, Math.min(1, n));
+}
+
+function clampPercent(n) {
+  const value = Number(n);
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, Math.round(value)));
 }
 
 function pseudoProgressFromId(id) {
@@ -43,6 +54,8 @@ function pseudoProgressFromId(id) {
 function TopicCard({ node, isSelected, onSelect, lessonCount }) {
   const progress = clamp01(node.progress ?? pseudoProgressFromId(node.id));
   const done = progress >= 1;
+  const depth = node._depth || 0;
+  const depthPadding = Math.min(depth * 14, 42);
 
   return (
     <button
@@ -50,20 +63,21 @@ function TopicCard({ node, isSelected, onSelect, lessonCount }) {
       className={[
         "w-full text-left rounded-2xl border p-4 transition group relative overflow-hidden",
         isSelected
-          ? "border-emerald-200 bg-emerald-50/60 shadow-sm"
+          ? "border-cyan-200 bg-cyan-50/60 shadow-sm"
           : "border-slate-200 bg-white hover:bg-slate-50",
       ].join(" ")}
+      style={{ marginLeft: `${depthPadding}px`, width: `calc(100% - ${depthPadding}px)` }}
     >
       {/* glow suave */}
       {isSelected ? (
-        <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-emerald-400/20 blur-2xl" />
+        <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-cyan-400/20 blur-2xl" />
       ) : null}
 
       <div className="relative flex items-start gap-3">
         <div
           className={[
             "h-11 w-11 rounded-2xl flex items-center justify-center shrink-0",
-            done ? "bg-emerald-600 text-white" : "bg-emerald-500/15 text-emerald-700",
+            done ? "bg-cyan-600 text-white" : "bg-cyan-500/15 text-cyan-700",
           ].join(" ")}
         >
           {done ? <CheckCircle2 size={20} /> : <Circle size={18} />}
@@ -73,6 +87,16 @@ function TopicCard({ node, isSelected, onSelect, lessonCount }) {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="font-extrabold text-slate-900 truncate">{node.name}</p>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
+                  Nivel {depth + 1}
+                </span>
+                {node._childrenCount > 0 ? (
+                  <span className="rounded-full bg-cyan-100 px-2 py-0.5 text-[11px] font-bold text-cyan-700">
+                    {node._childrenCount} subtemas
+                  </span>
+                ) : null}
+              </div>
               <p className="text-sm text-slate-600 line-clamp-1">
                 {node.description || " "}
               </p>
@@ -84,7 +108,7 @@ function TopicCard({ node, isSelected, onSelect, lessonCount }) {
           <div className="mt-3">
             <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
               <div
-                className="h-full rounded-full bg-emerald-500"
+                className="h-full rounded-full bg-cyan-500"
                 style={{ width: `${Math.round(progress * 100)}%` }}
               />
             </div>
@@ -93,7 +117,7 @@ function TopicCard({ node, isSelected, onSelect, lessonCount }) {
               <span className="text-slate-500">
                 {lessonCount ? `${lessonCount} lecciones` : " "}
               </span>
-              <span className={done ? "text-emerald-700" : "text-slate-500"}>
+              <span className={done ? "text-cyan-700" : "text-slate-500"}>
                 {Math.round(progress * 100)}%
               </span>
             </div>
@@ -125,6 +149,112 @@ function LessonItem({ lesson, onOpenLesson }) {
   );
 }
 
+function ProgressJournalChart({ items }) {
+  const chartData = useMemo(() => {
+    if (!Array.isArray(items)) return [];
+    return items
+      .map((it, idx) => {
+        const value = clampPercent(it?.masteryPercent ?? Number(it?.mastery) * 100 ?? 0);
+        const rawDate =
+          it?.timestamp || it?.recordedAt || it?.createdAt || it?.updatedAt || null;
+        const label = rawDate
+          ? new Date(rawDate).toLocaleDateString("es-EC", {
+              day: "2-digit",
+              month: "short",
+            })
+          : `M${idx + 1}`;
+
+        return {
+          id: it?.id ?? idx,
+          value,
+          label,
+        };
+      })
+      .filter((point) => Number.isFinite(point.value));
+  }, [items]);
+
+  if (!chartData.length) {
+    return (
+      <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        Aún no hay registros para mostrar en la gráfica.
+      </div>
+    );
+  }
+
+  const width = 560;
+  const height = 190;
+  const padX = 24;
+  const padY = 22;
+  const plotW = width - padX * 2;
+  const plotH = height - padY * 2;
+  const stepX = chartData.length > 1 ? plotW / (chartData.length - 1) : 0;
+
+  const points = chartData.map((point, idx) => {
+    const x = padX + idx * stepX;
+    const y = padY + ((100 - point.value) / 100) * plotH;
+    return { ...point, x, y };
+  });
+
+  const linePath = points
+    .map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
+    .join(" ");
+
+  const areaPath = `${linePath} L ${(padX + plotW).toFixed(2)} ${(padY + plotH).toFixed(
+    2
+  )} L ${padX.toFixed(2)} ${(padY + plotH).toFixed(2)} Z`;
+
+  return (
+    <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="h-[210px] w-full">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full" role="img" aria-label="Historial de progreso">
+          <defs>
+            <linearGradient id="masteryLine" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.95" />
+              <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.9" />
+            </linearGradient>
+            <linearGradient id="masteryArea" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="#14b8a6" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#14b8a6" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+
+          <line x1={padX} x2={padX + plotW} y1={padY + plotH} y2={padY + plotH} stroke="#cbd5e1" strokeWidth="1" />
+          <line x1={padX} x2={padX} y1={padY} y2={padY + plotH} stroke="#e2e8f0" strokeWidth="1" />
+
+          {[0, 25, 50, 75, 100].map((tick) => {
+            const y = padY + ((100 - tick) / 100) * plotH;
+            return (
+              <g key={tick}>
+                <line x1={padX} x2={padX + plotW} y1={y} y2={y} stroke="#f1f5f9" strokeWidth="1" />
+                <text x={6} y={y + 4} fontSize="10" fill="#64748b">{tick}%</text>
+              </g>
+            );
+          })}
+
+          <path d={areaPath} fill="url(#masteryArea)" />
+          <path d={linePath} fill="none" stroke="url(#masteryLine)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+          {points.map((point) => (
+            <g key={point.id}>
+              <circle cx={point.x} cy={point.y} r="4.3" fill="#0f172a" fillOpacity="0.08" />
+              <circle cx={point.x} cy={point.y} r="3.3" fill="#14b8a6" />
+            </g>
+          ))}
+        </svg>
+      </div>
+
+      <div className="mt-2 flex items-center justify-between gap-2 overflow-x-auto pb-1">
+        {chartData.map((point) => (
+          <div key={point.id} className="min-w-[60px] text-center">
+            <p className="text-[11px] font-extrabold text-slate-800">{point.value}%</p>
+            <p className="text-[10px] text-slate-500">{point.label}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
   const [tree, setTree] = useState([]);
   const [loadingTree, setLoadingTree] = useState(true);
@@ -140,6 +270,12 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
 
   const [topicLessons, setTopicLessons] = useState([]);
   const [loadingTopicLessons, setLoadingTopicLessons] = useState(false);
+  const [topicMasteryMap, setTopicMasteryMap] = useState({});
+  const [loadingMastery, setLoadingMastery] = useState(false);
+
+  const [masteryJournal, setMasteryJournal] = useState([]);
+  const [loadingJournal, setLoadingJournal] = useState(false);
+  const [journalError, setJournalError] = useState("");
 
   // 1) cargar arbol + lecciones del curso (para contar por tema)
   useEffect(() => {
@@ -237,6 +373,81 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
 
   const flatTopics = useMemo(() => flattenTree(tree), [tree]);
 
+  useEffect(() => {
+    let alive = true;
+
+    async function loadMasteryByTopic() {
+      if (!flatTopics.length) {
+        setTopicMasteryMap({});
+        return;
+      }
+
+      try {
+        setLoadingMastery(true);
+        const results = await Promise.allSettled(
+          flatTopics.map((topic) => getTopicMastery(topic.id))
+        );
+
+        if (!alive) return;
+
+        const nextMap = {};
+        results.forEach((result, index) => {
+          const topicId = flatTopics[index]?.id;
+          if (!topicId) return;
+          if (result.status === "fulfilled") {
+            nextMap[topicId] = clampPercent(result.value?.masteryPercent ?? Number(result.value?.mastery) * 100);
+          }
+        });
+
+        setTopicMasteryMap(nextMap);
+      } catch {
+        if (!alive) return;
+        setTopicMasteryMap({});
+      } finally {
+        if (!alive) return;
+        setLoadingMastery(false);
+      }
+    }
+
+    loadMasteryByTopic();
+
+    return () => {
+      alive = false;
+    };
+  }, [flatTopics]);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadJournal() {
+      if (!selectedId) {
+        setMasteryJournal([]);
+        setJournalError("");
+        return;
+      }
+
+      try {
+        setLoadingJournal(true);
+        setJournalError("");
+        const response = await getTopicMasteryJournal(selectedId, { limit: 20, offset: 0 });
+        if (!alive) return;
+        setMasteryJournal(Array.isArray(response?.items) ? response.items : []);
+      } catch {
+        if (!alive) return;
+        setMasteryJournal([]);
+        setJournalError("No se pudo cargar el historial de progreso.");
+      } finally {
+        if (!alive) return;
+        setLoadingJournal(false);
+      }
+    }
+
+    loadJournal();
+    return () => {
+      alive = false;
+    };
+  }, [selectedId]);
+
   const handleOpenInStudy = () => {
     if (!detail) return;
     onOpenTopic?.(detail);
@@ -246,12 +457,12 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       {/* LEFT: lista de temas tipo “bonita” */}
       <div className="lg:col-span-5">
-        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-          <div className="p-5 bg-gradient-to-r from-emerald-500/15 via-sky-500/10 to-violet-500/10 relative">
-            <div className="absolute inset-0 pointer-events-none opacity-70 [background:radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.25),transparent_40%),radial-gradient(circle_at_80%_30%,rgba(59,130,246,0.18),transparent_45%)]" />
+        <div className="rounded-[2rem] border border-white/70 bg-white/85 shadow-xl overflow-hidden">
+          <div className="relative p-5 bg-gradient-to-r from-teal-500/15 via-cyan-500/10 to-sky-500/15">
+            <div className="absolute inset-0 pointer-events-none opacity-70 [background:radial-gradient(circle_at_20%_20%,rgba(20,184,166,0.24),transparent_40%),radial-gradient(circle_at_80%_30%,rgba(14,165,233,0.18),transparent_45%)]" />
             <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="h-10 w-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+                <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-teal-600 to-sky-600 text-white flex items-center justify-center shadow-sm">
                   <Layers size={18} />
                 </div>
                 <div>
@@ -268,7 +479,7 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                 </span>
               ) : (
                 <span className="text-xs font-bold text-slate-700">
-                  {flatTopics.length} temas
+                  {loadingMastery ? "Calculando dominio..." : `${flatTopics.length} temas`}
                 </span>
               )}
             </div>
@@ -287,7 +498,13 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
               flatTopics.map((t) => (
                 <TopicCard
                   key={t.id}
-                  node={t}
+                  node={{
+                    ...t,
+                    progress:
+                      topicMasteryMap[t.id] != null
+                        ? topicMasteryMap[t.id] / 100
+                        : t.progress,
+                  }}
                   isSelected={selectedId === t.id}
                   onSelect={setSelectedId}
                   lessonCount={lessonsCountMap[t.id] || 0}
@@ -300,13 +517,13 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
 
       {/* RIGHT: detalle + subtemas + lecciones */}
       <div className="lg:col-span-7">
-        <div className="rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="rounded-[2rem] border border-white/70 bg-white/85 shadow-xl overflow-hidden">
           {/* header del panel derecho */}
-          <div className="relative p-6 bg-gradient-to-r from-emerald-500/12 via-sky-500/10 to-violet-500/10">
-            <div className="absolute inset-0 pointer-events-none opacity-60 [background:radial-gradient(circle_at_85%_20%,rgba(16,185,129,0.18),transparent_45%),radial-gradient(circle_at_70%_80%,rgba(59,130,246,0.14),transparent_45%)]" />
+          <div className="relative p-6 bg-gradient-to-r from-teal-500/12 via-cyan-500/10 to-sky-500/10">
+            <div className="absolute inset-0 pointer-events-none opacity-60 [background:radial-gradient(circle_at_85%_20%,rgba(20,184,166,0.18),transparent_45%),radial-gradient(circle_at_70%_80%,rgba(14,165,233,0.14),transparent_45%)]" />
             <div className="relative flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-extrabold text-emerald-800">
+                <div className="inline-flex items-center gap-2 rounded-full bg-teal-100 px-3 py-1 text-xs font-extrabold text-teal-800">
                   <Sparkles size={14} />
                   {detail ? "Tema seleccionado" : "Selecciona un tema"}
                 </div>
@@ -325,7 +542,7 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                 className={[
                   "shrink-0 rounded-2xl px-4 py-2 text-sm font-extrabold transition",
                   detail
-                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                    ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:brightness-105"
                     : "bg-slate-200 text-slate-500 cursor-not-allowed",
                 ].join(" ")}
               >
@@ -353,7 +570,7 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                 {/* Subtemas */}
                 <div>
                   <div className="flex items-center gap-2">
-                    <BookOpen size={18} className="text-emerald-700" />
+                    <BookOpen size={18} className="text-teal-700" />
                     <h4 className="text-sm font-black text-slate-900">Subtemas</h4>
                   </div>
 
@@ -363,7 +580,7 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                         <button
                           key={c.id}
                           onClick={() => setSelectedId(c.id)}
-                          className="text-left rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 hover:bg-emerald-50 transition"
+                          className="text-left rounded-2xl border border-cyan-200 bg-cyan-50/50 p-4 hover:bg-cyan-50 transition"
                         >
                           <p className="font-extrabold text-slate-900">{c.name}</p>
                           <p className="mt-1 text-xs text-slate-600 line-clamp-2">
@@ -408,6 +625,32 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                     <p className="mt-2 text-sm text-slate-500">
                       No hay lecciones para este tema.
                     </p>
+                  )}
+                </div>
+
+                {/* Historial de mastery */}
+                <div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <LineChart size={18} className="text-cyan-700" />
+                      <h4 className="text-sm font-black text-slate-900">Historial de progreso</h4>
+                    </div>
+
+                    <span className="text-xs font-bold text-slate-600">
+                      Dominio actual: {topicMasteryMap[selectedId] ?? 0}%
+                    </span>
+                  </div>
+
+                  {loadingJournal ? (
+                    <div className="mt-3 flex items-center gap-2 text-sm text-slate-500">
+                      <Loader2 className="animate-spin" size={16} /> Cargando historial...
+                    </div>
+                  ) : journalError ? (
+                    <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+                      {journalError}
+                    </div>
+                  ) : (
+                    <ProgressJournalChart items={masteryJournal} />
                   )}
                 </div>
               </div>

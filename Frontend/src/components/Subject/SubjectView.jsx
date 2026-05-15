@@ -1,19 +1,17 @@
 // src/components/Subject/SubjectView.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { ArrowLeft, BookOpen, FileText, Play, LineChart } from "lucide-react";
+import { ArrowLeft, BookOpen, Play, LineChart } from "lucide-react";
 
 import SubjectOverview from "./SubjectOverview";
 import SubjectTopics from "./SubjectTopics";
-import SubjectMaterials from "./SubjectMaterials";
 import SubjectSimulator from "./SubjectSimulator";
 import TopicDetail from "../Topic/TopicDetail";
 
-import { getCourseByIdRequest } from "../../services/coursesService";
+import { getCourseBySlugRequest } from "../../services/coursesService";
 
 export default function SubjectView({ onBack }) {
-  const { subjectId } = useParams(); // en tu ruta es /app/subject/:subjectId
-  const id = useMemo(() => Number(subjectId), [subjectId]);
+  const { slug } = useParams(); // en tu ruta es /app/subject/:slug
 
   const [activeTab, setActiveTab] = useState("resumen");
   const [course, setCourse] = useState(null);
@@ -26,7 +24,6 @@ export default function SubjectView({ onBack }) {
   const tabs = [
     { id: "resumen", label: "Resumen", icon: LineChart },
     { id: "temas", label: "Temas", icon: BookOpen },
-    { id: "materiales", label: "Material de estudio", icon: FileText },
     { id: "simulador", label: "Simulador", icon: Play },
   ];
 
@@ -36,7 +33,7 @@ export default function SubjectView({ onBack }) {
     async function load() {
       setLoadingCourse(true);
       try {
-        const c = await getCourseByIdRequest(id);
+        const c = await getCourseBySlugRequest(slug);
         if (!alive) return;
         setCourse(c);
       } catch (e) {
@@ -47,13 +44,13 @@ export default function SubjectView({ onBack }) {
       }
     }
 
-    if (Number.isFinite(id) && id > 0) load();
+    if (slug) load();
     else setLoadingCourse(false);
 
     return () => {
       alive = false;
     };
-  }, [id]);
+  }, [slug]);
 
   const handleOpenTopic = (topicFromApi) => {
     // TopicDetail en tu front usa title/desc, así que mapeamos:
@@ -61,7 +58,7 @@ export default function SubjectView({ onBack }) {
       id: topicFromApi.id,
       title: topicFromApi.name,
       desc: topicFromApi.description,
-      // si luego quieres, puedes pasar breadcrumb/children aquí también
+      courseId: course?.id,
       _raw: topicFromApi,
     };
     setSelectedTopic(mapped);
@@ -78,46 +75,40 @@ export default function SubjectView({ onBack }) {
   }
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-gradient-to-b from-slate-50 via-white to-slate-50">
-      <div className="mx-auto max-w-6xl px-6 py-8">
-        <div className="mt-6 rounded-3xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+    <div className="min-h-[calc(100vh-64px)] bg-[radial-gradient(circle_at_top,rgba(20,184,166,0.12),transparent_34%),linear-gradient(180deg,#f8fffe_0%,#eefbff_46%,#f8fafc_100%)]">
+      <div className="mx-auto max-w-7xl px-6 py-8">
+        <button
+          onClick={onBack}
+          className="relative inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900"
+        >
+          <ArrowLeft size={18} />
+          Volver al Dashboard
+        </button>
+        <div className="mt-6 overflow-hidden rounded-[2rem] border border-white/70 bg-white/80 shadow-xl">
           <div className="relative p-6 bg-gradient-to-br from-teal-500/90 via-cyan-500/80 to-sky-600/90">
-            <div className="absolute inset-0 pointer-events-none opacity-60 [background:radial-gradient(circle_at_20%_20%,rgba(16,185,129,0.25),transparent_40%),radial-gradient(circle_at_80%_30%,rgba(59,130,246,0.18),transparent_45%),radial-gradient(circle_at_60%_80%,rgba(139,92,246,0.18),transparent_45%)]" />
-
-            <button
-              onClick={onBack}
-              className="relative inline-flex items-center gap-2 text-sm text-slate-700 hover:text-slate-900"
-            >
-              <ArrowLeft size={18} />
-              Volver al Dashboard
-            </button>
-
-            <div className="relative mt-5 flex items-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
-                <BookOpen size={26} />
+            <div className="absolute inset-0 pointer-events-none opacity-60 [background:radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.16),transparent_38%),radial-gradient(circle_at_82%_30%,rgba(255,255,255,0.14),transparent_42%),radial-gradient(circle_at_60%_80%,rgba(255,255,255,0.12),transparent_42%)]" />
+            <div className="relative mt-5 flex flex-col gap-6 md:flex-row md:items-center md:gap-10">
+              <div className="flex h-18 w-18 items-center justify-center rounded-3xl bg-white/15 text-white shadow-lg">
+                <BookOpen size={40} />
               </div>
 
               <div className="min-w-0">
-                <h1 className="text-3xl font-black tracking-tight text-slate-900">
+                <h1 className="text-3xl font-black tracking-tight text-white md:text-4xl">
                   {loadingCourse ? "Cargando..." : course?.title ?? "Curso"}
                 </h1>
-                <p className="mt-1 text-slate-700">
+                <p className="mt-2 max-w-2xl text-white/85">
                   {loadingCourse ? " " : course?.description ?? " "}
                 </p>
 
-                <div className="mt-3 inline-flex items-center gap-2">
-                  <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-bold text-white">
+                <div className="mt-4 inline-flex items-center gap-2">
+                  <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-black text-slate-900 shadow-sm">
                     {course?.code ?? "CURSO"}
-                  </span>
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">
-                    {course?.status ?? "active"}
                   </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Tabs más vivos */}
           <div className="px-6">
             <div className="mt-4 flex flex-wrap gap-2 pb-4">
               {tabs.map(({ id, label, icon: Icon }) => {
@@ -129,8 +120,8 @@ export default function SubjectView({ onBack }) {
                     className={[
                       "inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold transition",
                       active
-                        ? "bg-blue-600 text-white shadow-sm"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200",
+                        ? "bg-white text-cyan-700 border border-cyan-200 shadow-md"
+                        : "bg-slate-100 text-slate-700 border border-transparent hover:bg-slate-200",
                     ].join(" ")}
                   >
                     <Icon size={16} />
@@ -145,8 +136,8 @@ export default function SubjectView({ onBack }) {
         <div className="mt-6">
           {activeTab === "resumen" && (
             <SubjectOverview
+              courseId={course?.id}
               subject={{
-                // para no tocar SubjectOverview ahora, le pasamos algo compatible:
                 name: course?.title ?? "Curso",
                 description: course?.description ?? "",
               }}
@@ -154,12 +145,12 @@ export default function SubjectView({ onBack }) {
           )}
 
           {activeTab === "temas" && (
-            <SubjectTopics courseId={id} onOpenTopic={handleOpenTopic} />
+            <SubjectTopics courseId={course?.id} onOpenTopic={handleOpenTopic} />
           )}
 
-          {activeTab === "materiales" && <SubjectMaterials />}
-
-          {activeTab === "simulador" && <SubjectSimulator />}
+          {activeTab === "simulador" && (
+            <SubjectSimulator course={course} slug={slug} variant="preview" />
+          )}
         </div>
       </div>
     </div>

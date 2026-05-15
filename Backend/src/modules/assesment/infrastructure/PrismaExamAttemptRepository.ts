@@ -7,7 +7,7 @@ import type {
 import type { ExamAttempt, ExamAttemptWithDetails } from '../domain/ExamAttempt';
 
 export class PrismaExamAttemptRepository implements IExamAttemptRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaClient) { }
 
   async findById(id: number): Promise<ExamAttempt | null> {
     const attempt = await this.prisma.exam_attempts.findUnique({
@@ -99,7 +99,6 @@ export class PrismaExamAttemptRepository implements IExamAttemptRepository {
       where: { id },
       data: {
         ...(data.completedAt && { completed_at: data.completedAt }),
-        ...(data.durationSec !== undefined && { duration_sec: data.durationSec }),
         ...(data.scoreRaw !== undefined && { score_raw: data.scoreRaw }),
         ...(data.scoreNorm !== undefined && { score_norm: data.scoreNorm }),
         ...(data.metadata !== undefined && { metadata: data.metadata }),

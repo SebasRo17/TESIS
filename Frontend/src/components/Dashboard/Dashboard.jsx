@@ -14,19 +14,51 @@ import {
   Lightbulb,
   ShieldCheck,
   Timer,
+  Loader2,
+  ListChecks,
+  History,
 } from "lucide-react";
 
-import { overallStats, weeklyRoadmap, subjects } from "../../data/mockData";
+import { overallStats } from "../../data/mockData";
 
 import SubjectCard from "./SubjectCard";
-import EduBot3D from "../Tutorial/EduBot3D";
+import { EduBot3DWithMode } from "../Tutorial/EduBot3D";
 import { getCoursesRequest } from "../../services/coursesService";
+import { getCourseMastery } from "../../services/masteryService";
+import {
+  getActiveStudyPlan,
+  getNextStudyPlanActivity,
+  getStudyPlanHistory,
+  updateStudyPlanItemStatus,
+} from "../../services/studyPlansService";
 
 const TOUR_KEY = "eduprep-dashboard-tour:v2";
 
 // ===== Utils =====
 function clamp(n, min, max) {
   return Math.max(min, Math.min(max, n));
+}
+
+function getItemStatusMeta(status) {
+  const key = String(status || "pending").toLowerCase();
+  if (key === "done") {
+    return { label: "Completado", badge: "bg-emerald-100 text-emerald-700 border-emerald-200" };
+  }
+  if (key === "blocked") {
+    return { label: "Bloqueado", badge: "bg-rose-100 text-rose-700 border-rose-200" };
+  }
+  if (key === "in_progress") {
+    return { label: "En progreso", badge: "bg-sky-100 text-sky-700 border-sky-200" };
+  }
+  return { label: "Pendiente", badge: "bg-amber-100 text-amber-700 border-amber-200" };
+}
+
+function getContentTypeLabel(type) {
+  const key = String(type || "").toLowerCase();
+  if (key === "topic") return "Tema";
+  if (key === "lesson") return "Lección";
+  if (key === "exam") return "Simulador";
+  return type ? String(type) : "Actividad";
 }
 
 function getRectById(anchorId) {
@@ -225,11 +257,11 @@ function DashboardTour({
 
   const spot = rect
     ? {
-        top: rect.top - pad,
-        left: rect.left - pad,
-        width: rect.width + pad * 2,
-        height: rect.height + pad * 2,
-      }
+      top: rect.top - pad,
+      left: rect.left - pad,
+      width: rect.width + pad * 2,
+      height: rect.height + pad * 2,
+    }
     : { top: 80, left: 24, width: 320, height: 120 };
 
   // Bubble positioning (prefer near spotlight)
@@ -237,11 +269,27 @@ function DashboardTour({
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    const preferredLeft = spot.left + spot.width / 2 - 210; // centrado
-    const preferredTop = spot.top + spot.height + 16;
+    const bubbleW = 700;
+    const bubbleH = 320;
 
-    const bubbleW = 420;
-    const bubbleH = 220;
+    if (stepIndex === 1) {
+      // Paso 2: mantenemos el modal arriba para dejar limpia la hoja de ruta.
+      return {
+        left: clamp(spot.left + spot.width / 2 - bubbleW / 2, 16, vw - 16 - bubbleW),
+        top: clamp(spot.top - bubbleH - 18, 12, vh - 16 - bubbleH),
+      };
+    }
+
+    if (stepIndex === 3) {
+      // Paso 4: modal bien arriba para que el robot de abajo apunte al spotlight.
+      return {
+        left: clamp(spot.left + spot.width / 2 - bubbleW / 2, 16, vw - 16 - bubbleW),
+        top: clamp(spot.top - bubbleH - 22, 12, vh - 16 - bubbleH),
+      };
+    }
+
+    const preferredLeft = spot.left + spot.width / 2 - bubbleW / 2;
+    const preferredTop = spot.top + spot.height + 16;
 
     const belowFits = preferredTop + bubbleH < vh - 16;
     const top = belowFits ? preferredTop : spot.top - 16 - bubbleH;
@@ -249,6 +297,41 @@ function DashboardTour({
     return {
       left: clamp(preferredLeft, 16, vw - 16 - bubbleW),
       top: clamp(top, 16, vh - 16 - bubbleH),
+    };
+  })();
+
+  const robot = (() => {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const size = vw < 768 ? 130 : 220;
+
+    let preferredLeft = spot.left - size - 28;
+    let preferredTop = spot.top + spot.height / 2 - size / 2;
+    let direction = "right";
+
+    if (stepIndex === 0) {
+      preferredLeft = spot.left - size + 248;
+      preferredTop = spot.top + spot.height / 2 - size / 2 + 215;
+      direction = "right";
+    } else if (stepIndex === 1) {
+      preferredLeft = spot.left + spot.width + 24;
+      preferredTop = spot.top + spot.height / 2 - size / 2 + 4;
+      direction = "left";
+    } else if (stepIndex === 2) {
+      preferredLeft = spot.left - size - 24;
+      preferredTop = spot.top + spot.height / 2 - size / 2 + 2;
+      direction = "right";
+    } else if (stepIndex === 3) {
+      preferredLeft = spot.left + spot.width / 2 - size / 2;
+      preferredTop = spot.top + spot.height + 18;
+      direction = "left";
+    }
+
+    return {
+      left: clamp(preferredLeft, 10, vw - size - 10),
+      top: clamp(preferredTop, 10, vh - size - 10),
+      size,
+      direction,
     };
   })();
 
@@ -279,33 +362,59 @@ function DashboardTour({
         }}
       />
 
+      <div
+        className="absolute pointer-events-none transition-all duration-700 ease-out"
+        style={{
+          top: robot.top,
+          left: robot.left,
+          width: robot.size,
+          height: robot.size,
+          filter: "drop-shadow(0 16px 24px rgba(2, 132, 199, 0.2))",
+        }}
+      >
+        <EduBot3DWithMode
+          mode="tour"
+          stepIndex={stepIndex}
+          pointDirection={robot.direction}
+          interactive={false}
+        />
+      </div>
+
       {/* Bubble */}
       <div
-        className="absolute w-[420px] max-w-[94vw]"
+        className="absolute w-[700px] max-w-[96vw]"
         style={{ top: bubble.top, left: bubble.left }}
       >
-        <div className="relative overflow-hidden rounded-3xl bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl">
-          <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-teal-500/10 via-cyan-500/10 to-sky-500/10" />
+        <div className="relative">
+          <div className="relative overflow-visible rounded-3xl bg-white/90 backdrop-blur-xl border border-white/50 shadow-2xl">
+            <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-teal-500/10 via-cyan-500/10 to-sky-500/10" />
 
-          {/* little pointer toward spotlight */}
-          <div
-            className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 bg-white/90 border-l border-t border-white/50"
-            aria-hidden="true"
-          />
+            {/* little pointer toward spotlight */}
+            {/* Pointer: apunta hacia el spotlight */}
+            {(() => {
+              const spotCenter = spot.top + spot.height / 2;
+              const bubbleBottom = bubble.top + 320; // aprox altura del bubble
+              const isAbove = bubble.top + 320 < spotCenter; // modal está arriba del spotlight
 
-          <div className="relative p-5">
-            <div className="flex items-start gap-4">
-              <div className="shrink-0">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-500 p-[2px] shadow-lg shadow-teal-500/20">
-                  <div className="h-full w-full rounded-2xl bg-white/90 flex items-center justify-center">
-                    <EduBot3D className="h-12 w-12" />
-                  </div>
-                </div>
-              </div>
+              return isAbove ? (
+                // Modal arriba → flecha apunta ABAJO
+                <div
+                  className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 bg-white/90 border-r border-b border-white/50"
+                  aria-hidden="true"
+                />
+              ) : (
+                // Modal abajo → flecha apunta ARRIBA
+                <div
+                  className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 rotate-45 bg-white/90 border-l border-t border-white/50"
+                  aria-hidden="true"
+                />
+              );
+            })()}
 
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+            <div className="relative p-5 sm:p-6">
+              <div className="min-w-0">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-teal-600" />
                     {step.title}
                   </p>
@@ -321,7 +430,7 @@ function DashboardTour({
                   </button>
                 </div>
 
-                <p className="mt-2 text-sm text-slate-700 leading-relaxed">
+                <p className="mt-2 text-base text-slate-700 leading-relaxed">
                   {step.text}
                 </p>
 
@@ -371,6 +480,10 @@ function DashboardTour({
         <style>{`
           .edubot-float { animation: edubotFloat 2.6s ease-in-out infinite; }
           .edubot-wave { animation: edubotWave 1.3s ease-in-out infinite; }
+          @keyframes tutorialPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.06); opacity: 0.92; }
+          }
           @keyframes edubotFloat {
             0%, 100% { transform: translateY(0px); }
             50% { transform: translateY(-4px); }
@@ -407,11 +520,40 @@ export default function Dashboard({
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [coursesError, setCoursesError] = useState(null);
 
-  const [selectedSubjectId, setSelectedSubjectId] = useState(null);
+  const [selectedSubjectCode, setSelectedSubjectCode] = useState(null);
+  const [coursePlansSummary, setCoursePlansSummary] = useState([]);
+  const [coursePlansLoading, setCoursePlansLoading] = useState(false);
+  const [coursePlansError, setCoursePlansError] = useState("");
+  const [expandedHistoryCourseId, setExpandedHistoryCourseId] = useState(null);
+  const [updatingCourseItemKey, setUpdatingCourseItemKey] = useState("");
+  const [courseMasteryMap, setCourseMasteryMap] = useState({});
+  // const tipsRect = useAnchorRect("tips-section", [tourOpen]);
 
-  const handleSubjectClick = (id) => {
-    setSelectedSubjectId(id);
-    onSubjectSelect?.(id);
+  // const tipsBot = useMemo(() => {
+  //   if (tourOpen || !tipsRect) return null;
+
+  //   const vw = window.innerWidth;
+  //   const vh = window.innerHeight;
+  //   const tipsBottom = tipsRect.top + tipsRect.height;
+  //   const isTipsVisible = tipsBottom > 80 && tipsRect.top < vh - 40;
+  //   if (!isTipsVisible) return null;
+
+  //   const size = vw < 768 ? 126 : 176;
+
+  //   const mobileTop = tipsRect.top + 48;
+  //   const desktopTop = tipsRect.top + 74;
+
+  //   return {
+  //     size,
+  //     // Izquierda, como primera columna de Tips.
+  //     left: clamp(tipsRect.left + 8, 10, vw - size - 10),
+  //     top: clamp(vw < 768 ? mobileTop : desktopTop, 10, vh - size - 10),
+  //   };
+  // }, [tipsRect, tourOpen]);
+
+  const handleSubjectClick = (code) => {
+    setSelectedSubjectCode(code);
+    onSubjectSelect?.(code);
   };
 
   // ✅ 2) useMemo DESPUÉS (porque usa "courses")
@@ -462,6 +604,190 @@ export default function Dashboard({
       setTourStep(0);
     }
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+
+    const loadCoursePlans = async () => {
+      if (!courses.length) {
+        setCoursePlansSummary([]);
+        setCoursePlansError("");
+        return;
+      }
+
+      try {
+        setCoursePlansLoading(true);
+        setCoursePlansError("");
+
+        const results = await Promise.allSettled(
+          courses.map(async (course) => {
+            const [planRes, nextRes, historyRes] = await Promise.allSettled([
+              getActiveStudyPlan(course.id),
+              getNextStudyPlanActivity(course.id),
+              getStudyPlanHistory(course.id),
+            ]);
+
+            const plan = planRes.status === "fulfilled" ? planRes.value : null;
+            const items = Array.isArray(plan?.items) ? plan.items : [];
+            const nextActivity =
+              nextRes.status === "fulfilled" ? nextRes.value || null : null;
+            const history =
+              historyRes.status === "fulfilled" && Array.isArray(historyRes.value)
+                ? historyRes.value
+                : [];
+            const total = items.length;
+            const done = items.filter(
+              (item) => String(item.status).toLowerCase() === "done"
+            ).length;
+            const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+
+            return {
+              courseId: course.id,
+              courseCode: course.code,
+              courseTitle: course.title,
+              hasPlan: Boolean(plan),
+              planId: plan?.id || null,
+              planState: plan?.state || null,
+              items,
+              nextActivity,
+              history,
+              totalItems: total,
+              doneItems: done,
+              progress,
+            };
+          })
+        );
+
+        if (!alive) return;
+
+        const summary = results.map((result, index) => {
+          if (result.status === "fulfilled") return result.value;
+
+          const fallbackCourse = courses[index];
+          return {
+            courseId: fallbackCourse.id,
+            courseCode: fallbackCourse.code,
+            courseTitle: fallbackCourse.title,
+            hasPlan: false,
+            planState: null,
+            totalItems: 0,
+            doneItems: 0,
+            progress: 0,
+          };
+        });
+
+        setCoursePlansSummary(summary);
+      } catch (err) {
+        if (!alive) return;
+        const msg =
+          err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          "No se pudo cargar la hoja de ruta semanal.";
+        setCoursePlansError(msg);
+      } finally {
+        if (!alive) return;
+        setCoursePlansLoading(false);
+      }
+    };
+
+    loadCoursePlans();
+
+    return () => {
+      alive = false;
+    };
+  }, [courses]);
+
+  useEffect(() => {
+    let alive = true;
+
+    const loadCourseMastery = async () => {
+      if (!courses.length) {
+        setCourseMasteryMap({});
+        return;
+      }
+
+      try {
+        const results = await Promise.allSettled(
+          courses.map((course) => getCourseMastery(course.id))
+        );
+
+        if (!alive) return;
+
+        const nextMap = {};
+        results.forEach((result, index) => {
+          const courseId = courses[index]?.id;
+          if (!courseId) return;
+          if (result.status === "fulfilled") {
+            nextMap[courseId] = Math.max(
+              0,
+              Math.min(100, Math.round(Number(result.value?.masteryPercent ?? result.value?.mastery ?? 0)))
+            );
+          }
+        });
+
+        setCourseMasteryMap(nextMap);
+      } catch {
+        if (!alive) return;
+        setCourseMasteryMap({});
+      }
+    };
+
+    loadCourseMastery();
+
+    return () => {
+      alive = false;
+    };
+  }, [courses]);
+
+  const handleUpdateCoursePlanItem = async (courseId, itemId, status = "done") => {
+    if (!courseId || !itemId) return;
+
+    try {
+      setUpdatingCourseItemKey(`${courseId}:${itemId}`);
+      setCoursePlansError("");
+      await updateStudyPlanItemStatus(itemId, status);
+
+      const [plan, next, history] = await Promise.all([
+        getActiveStudyPlan(courseId),
+        getNextStudyPlanActivity(courseId),
+        getStudyPlanHistory(courseId),
+      ]);
+
+      const items = Array.isArray(plan?.items) ? plan.items : [];
+      const total = items.length;
+      const done = items.filter(
+        (item) => String(item.status).toLowerCase() === "done"
+      ).length;
+      const progress = total > 0 ? Math.round((done / total) * 100) : 0;
+
+      setCoursePlansSummary((prev) =>
+        prev.map((entry) => {
+          if (entry.courseId !== courseId) return entry;
+
+          return {
+            ...entry,
+            hasPlan: Boolean(plan),
+            planId: plan?.id || null,
+            planState: plan?.state || null,
+            items,
+            nextActivity: next || null,
+            history: Array.isArray(history) ? history : [],
+            totalItems: total,
+            doneItems: done,
+            progress,
+          };
+        })
+      );
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        "No se pudo actualizar el estado de la actividad.";
+      setCoursePlansError(msg);
+    } finally {
+      setUpdatingCourseItemKey("");
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -605,125 +931,213 @@ export default function Dashboard({
             Hoja de Ruta Semanal
           </h2>
 
-          <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {weeklyRoadmap.map((week) => (
-              <article
-                key={week.id}
-                className="relative overflow-hidden rounded-3xl bg-white/70 backdrop-blur-xl border border-white/40 shadow-lg"
-              >
-                <div className="relative p-7">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <div className="h-11 w-11 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center">
-                        <CalendarDays className="w-5 h-5 text-slate-700" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-extrabold text-slate-900">
-                          {week.title}
-                        </h3>
-                        <p className="text-sm text-slate-600 mt-1">
-                          {week.description}
-                        </p>
-                      </div>
-                    </div>
+          {coursePlansError ? (
+            <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+              {coursePlansError}
+            </div>
+          ) : null}
 
-                    <span className="shrink-0 inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold bg-teal-50 text-teal-700 border border-teal-100">
-                      {week.tag}
-                    </span>
-                  </div>
+          {coursePlansLoading ? (
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-600 inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Cargando hoja de ruta semanal...
+            </div>
+          ) : coursePlansSummary.length === 0 ? (
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+              No hay cursos para mostrar.
+            </div>
+          ) : (
+            <div className="mt-5 space-y-5">
+              {coursePlansSummary.map((entry) => {
+                const stateLabel = entry.hasPlan
+                  ? String(entry.planState || "active").toUpperCase()
+                  : "SIN PLAN";
+                const mastery =
+                  courseMasteryMap[entry.courseId] != null
+                    ? courseMasteryMap[entry.courseId]
+                    : null;
+                const progressValue = mastery != null ? mastery : entry.progress;
 
-                  <div className="mt-5 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-slate-700">
-                      Progreso semanal
-                    </p>
-                    <p className="text-sm font-extrabold text-slate-900">
-                      {week.progress}%
-                    </p>
-                  </div>
+                const isHistoryOpen = expandedHistoryCourseId === entry.courseId;
 
-                  <div className="mt-2 h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-teal-500 to-cyan-500"
-                      style={{ width: `${week.progress}%` }}
-                    />
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-600">
-                    <span className="inline-flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span className="font-extrabold text-slate-700">
-                        {week.completedTasks}/{week.totalTasks}
-                      </span>
-                      tareas
-                    </span>
-                    <span className="inline-flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-sky-600" />
-                      <span className="font-extrabold text-slate-700">
-                        {week.estimatedHours}h
-                      </span>
-                      estimadas
-                    </span>
-                  </div>
-
-                  <div className="mt-5">
-                    <p className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
-                      Próximas tareas
-                    </p>
-
-                    <div className="mt-3 space-y-2">
-                      {week.tasks.map((t) => (
-                        <div
-                          key={t.id}
-                          className={`flex items-start gap-3 rounded-2xl px-3 py-2 border ${
-                            t.done
-                              ? "bg-emerald-50/60 border-emerald-100"
-                              : "bg-white/50 border-white/40"
-                          }`}
-                        >
-                          <span
-                            className={`mt-0.5 h-5 w-5 rounded-full flex items-center justify-center text-xs font-extrabold ${
-                              t.done
-                                ? "bg-emerald-500 text-white"
-                                : "bg-slate-200 text-slate-600"
-                            }`}
-                          >
-                            {t.done ? "✓" : "○"}
-                          </span>
-
-                          <div className="text-sm text-slate-800">
-                            <span
-                              className={
-                                t.done ? "line-through opacity-70" : ""
-                              }
-                            >
-                              {t.label}
-                            </span>{" "}
-                            <span className="text-slate-500">
-                              ({t.minutes}min)
-                            </span>
-                          </div>
+                return (
+                  <article
+                    key={entry.courseId}
+                    className="relative overflow-hidden rounded-3xl bg-white/70 backdrop-blur-xl border border-white/40 shadow-lg"
+                  >
+                    <div className="relative p-6 sm:p-7">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-xl font-extrabold text-slate-900">{entry.courseTitle}</h3>
+                          <p className="mt-1 text-sm font-semibold text-slate-500">{entry.courseCode}</p>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-extrabold text-slate-700">
+                          {stateLabel}
+                        </span>
+                      </div>
 
-                  <div className="mt-6">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        week.planId &&
-                        onStudyPlanSelect &&
-                        onStudyPlanSelect(week.planId)
-                      }
-                      className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-sm font-extrabold shadow-lg shadow-teal-500/25 hover:shadow-xl hover:shadow-teal-500/30 transition"
-                    >
-                      Ver plan completo <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
+                      <div className="mt-4 flex items-center justify-between text-sm text-slate-600">
+                        <span>{mastery != null ? "Dominio del curso" : `${entry.doneItems}/${entry.totalItems} completadas`}</span>
+                        <span className="font-extrabold text-slate-900">{progressValue}%</span>
+                      </div>
+                      <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-teal-500 to-cyan-500"
+                          style={{ width: `${progressValue}%` }}
+                        />
+                      </div>
+
+                      <div className="mt-5 grid grid-cols-1 xl:grid-cols-3 gap-4">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <div className="flex items-center gap-2">
+                            <ListChecks className="w-4 h-4 text-slate-700" />
+                            <p className="text-sm font-extrabold text-slate-900">Plan semanal</p>
+                          </div>
+
+                          {!entry.hasPlan ? (
+                            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                              Plan activo no encontrado.
+                            </div>
+                          ) : (entry.items || []).length === 0 ? (
+                            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                              El plan no tiene actividades.
+                            </div>
+                          ) : (
+                            <div className="mt-3 space-y-2">
+                              {(entry.items || []).slice(0, 6).map((item) => {
+                                const status = String(item.status || "pending").toLowerCase();
+                                const isDone = status === "done";
+                                const itemKey = `${entry.courseId}:${item.id}`;
+                                const isUpdating = updatingCourseItemKey === itemKey;
+
+                                return (
+                                  <div
+                                    key={item.id}
+                                    className="rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2"
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div>
+                                        <p className="text-sm font-bold text-slate-800">
+                                          {getContentTypeLabel(item.type || item.contentRefType)} #{item.contentRefId}
+                                        </p>
+                                        <span className={["mt-1 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-extrabold", getItemStatusMeta(item.status).badge].join(" ")}>
+                                          {getItemStatusMeta(item.status).label}
+                                        </span>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUpdateCoursePlanItem(entry.courseId, item.id, "done")}
+                                        disabled={isDone || isUpdating}
+                                        className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-extrabold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {isUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                                        {isDone ? "Hecho" : "Marcar realizado"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {entry.planId ? (
+                            <button
+                              type="button"
+                              onClick={() => onStudyPlanSelect?.(entry.planId)}
+                              className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 px-3 py-2 text-sm font-extrabold text-white"
+                            >
+                              Ver plan completo <ArrowRight className="w-4 h-4" />
+                            </button>
+                          ) : null}
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-slate-700" />
+                            <p className="text-sm font-extrabold text-slate-900">Siguiente actividad</p>
+                          </div>
+
+                          {!entry.nextActivity ? (
+                            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                              No hay una siguiente actividad disponible.
+                            </div>
+                          ) : (
+                            <>
+                              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                                <p className="text-sm font-bold text-slate-900">
+                                  {getContentTypeLabel(entry.nextActivity.type || entry.nextActivity.contentRefType)} #{entry.nextActivity.contentRefId}
+                                </p>
+                                <span className={["mt-2 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-extrabold", getItemStatusMeta(entry.nextActivity.status).badge].join(" ")}>
+                                  {getItemStatusMeta(entry.nextActivity.status).label}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateCoursePlanItem(entry.courseId, entry.nextActivity.id, "done")}
+                                disabled={updatingCourseItemKey === `${entry.courseId}:${entry.nextActivity.id}`}
+                                className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-extrabold text-emerald-700 disabled:opacity-60"
+                              >
+                                {updatingCourseItemKey === `${entry.courseId}:${entry.nextActivity.id}` ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : null}
+                                Marcar como realizado
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="inline-flex items-center gap-2">
+                              <History className="w-4 h-4 text-slate-700" />
+                              <p className="text-sm font-extrabold text-slate-900">Historial</p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedHistoryCourseId((prev) =>
+                                  prev === entry.courseId ? null : entry.courseId
+                                )
+                              }
+                              className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-extrabold text-slate-700"
+                            >
+                              {isHistoryOpen ? "Ocultar" : "Ver historial"}
+                            </button>
+                          </div>
+
+                          {!isHistoryOpen ? (
+                            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                              Presiona "Ver historial" para revisar versiones.
+                            </div>
+                          ) : (entry.history || []).length === 0 ? (
+                            <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                              Sin historial disponible.
+                            </div>
+                          ) : (
+                            <div className="mt-3 space-y-2">
+                              {(entry.history || []).slice(0, 5).map((plan) => (
+                                <div
+                                  key={plan.id}
+                                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
+                                >
+                                  <p className="text-sm font-bold text-slate-800">Versión {plan.version}</p>
+                                  <span className="text-xs font-extrabold text-slate-500">
+                                    {plan.itemsCount || 0} items
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* MATERIAS */}
@@ -755,8 +1169,8 @@ export default function Dashboard({
                 <SubjectCard
                   key={subject.id}
                   subject={subject}
-                  isSelected={selectedSubjectId === subject.id}
-                  onClick={() => handleSubjectClick(subject.id)}
+                  isSelected={selectedSubjectCode === subject.code}
+                  onClick={() => handleSubjectClick(subject.code)}
                 />
               ))
             )}
@@ -765,47 +1179,60 @@ export default function Dashboard({
 
         {/* TIPS Y CONSEJOS */}
         <section id="tips-section" className="mt-10">
-          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
-            Tips y Consejos
-          </h2>
+          <div className="flex items-start gap-15">
 
-          <p className="mt-2 text-slate-600">
-            Recomendaciones cortas para estudiar mejor y rendir más.
-          </p>
-
-          <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <TipCard
-              Icon={Timer}
-              title="Método 25/5 (Pomodoro)"
-              text="Estudia 25 minutos, descansa 5. Repite 4 veces y toma un descanso largo."
-              accent="from-teal-500 to-cyan-500"
-            />
-            <TipCard
-              Icon={Lightbulb}
-              title="Aprende con ejemplos"
-              text="Si una regla te confunde, busca 2 ejemplos y luego crea uno tú."
-              accent="from-indigo-500 to-sky-500"
-            />
-            <TipCard
-              Icon={ShieldCheck}
-              title="Simulacro con calma"
-              text="No corras. Primero asegúrate de entender la pregunta, luego responde."
-              accent="from-violet-500 to-fuchsia-500"
-            />
-          </div>
-
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={onGeneralSimulator}
-              className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/70 backdrop-blur border border-white/40 shadow-sm hover:shadow-md transition"
+            {/* Robot a la izquierda — parte del flujo, no fixed */}
+            <div
+              className="hidden md:block shrink-0"
+              style={{ width: 200, height: 280, marginTop: 32, marginRight: -16 }}
             >
-              <Award className="w-5 h-5 text-slate-700" />
-              <span className="text-sm font-extrabold text-slate-800">
-                Practicar con un simulacro general
-              </span>
-              <ArrowRight className="w-4 h-4 text-slate-700" />
-            </button>
+              <EduBot3DWithMode mode="tips" interactive={false} />
+            </div>
+
+            {/* Contenido a la derecha */}
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+                Tips y Consejos
+              </h2>
+              <p className="mt-2 text-slate-600">
+                Recomendaciones cortas para estudiar mejor y rendir más.
+              </p>
+
+              <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <TipCard
+                  Icon={Timer}
+                  title="Método 25/5 (Pomodoro)"
+                  text="Estudia 25 minutos, descansa 5. Repite 4 veces y toma un descanso largo."
+                  accent="from-teal-500 to-cyan-500"
+                />
+                <TipCard
+                  Icon={Lightbulb}
+                  title="Aprende con ejemplos"
+                  text="Si una regla te confunde, busca 2 ejemplos y luego crea uno tú."
+                  accent="from-indigo-500 to-sky-500"
+                />
+                <TipCard
+                  Icon={ShieldCheck}
+                  title="Simulacro con calma"
+                  text="No corras. Primero asegúrate de entender la pregunta, luego responde."
+                  accent="from-cyan-500 to-sky-500"
+                />
+              </div>
+
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={onGeneralSimulator}
+                  className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/70 backdrop-blur border border-white/40 shadow-sm hover:shadow-md transition"
+                >
+                  <Award className="w-5 h-5 text-slate-700" />
+                  <span className="text-sm font-extrabold text-slate-800">
+                    Practicar con un simulacro general
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-slate-700" />
+                </button>
+              </div>
+            </div>
           </div>
         </section>
       </div>
@@ -819,6 +1246,21 @@ export default function Dashboard({
         onNext={nextTour}
         onPrev={prevTour}
       />
+
+      {/* {tipsBot ? (
+        <div
+          className="fixed z-[35] pointer-events-none transition-all duration-700 ease-out"
+          style={{
+            top: tipsBot.top,
+            left: tipsBot.left,
+            width: tipsBot.size,
+            height: tipsBot.size,
+            filter: "drop-shadow(0 14px 24px rgba(15, 23, 42, 0.2))",
+          }}
+        >
+          <EduBot3DWithMode mode="tips" interactive={false} />
+        </div>
+      ) : null} */}
     </div>
   );
 }

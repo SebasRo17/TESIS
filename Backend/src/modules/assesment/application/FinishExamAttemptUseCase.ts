@@ -19,7 +19,7 @@ export class FinishExamAttemptUseCase {
     private readonly examAttemptRepository: IExamAttemptRepository,
     private readonly itemResponseRepository: IItemResponseRepository,
     private readonly examRepository: IExamRepository
-  ) {}
+  ) { }
 
   async execute(attemptId: number, userId: number): Promise<ExamAttempt> {
     // Validar que el intento existe
@@ -47,16 +47,12 @@ export class FinishExamAttemptUseCase {
     // Calcular métricas
     const metrics = await this.calculateMetrics(attemptId, exam.items.length);
 
-    // Calcular duración
+    // Solo se marca la finalización; duration_sec es una columna generada en BD
     const completedAt = new Date();
-    const durationSec = Math.floor(
-      (completedAt.getTime() - attempt.startedAt.getTime()) / 1000
-    );
 
     // Actualizar el intento
     const updatedAttempt = await this.examAttemptRepository.update(attemptId, {
       completedAt,
-      durationSec,
       scoreRaw: metrics.scoreRaw,
       scoreNorm: metrics.scoreNorm,
       metadata: {
