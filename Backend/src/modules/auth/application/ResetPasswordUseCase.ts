@@ -42,6 +42,7 @@ export class ResetPasswordUseCase {
 
       return ok({ message: "Contraseña actualizada correctamente" });
     } catch (e) {
+      console.error("[ResetPasswordUseCase] Error al cambiar contraseña:", e);
       return err(new AppError("Error al cambiar contraseña", 500));
     }
   }

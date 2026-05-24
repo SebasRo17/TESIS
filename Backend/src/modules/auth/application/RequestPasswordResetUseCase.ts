@@ -56,6 +56,26 @@ export class RequestPasswordResetUseCase {
 
             console.log('💾 [RequestPasswordResetUseCase] Guardando token en BD...');
             await this.repo.storePasswordReset(user.id, tokenHash, expiresAt, input.ip, input.userAgent);
+
+            const mailConfigured = Boolean(
+                env.mail.user &&
+                env.gmail.clientId &&
+                env.gmail.clientSecret &&
+                env.gmail.refreshToken
+            );
+
+            if (!mailConfigured) {
+                console.warn('[RequestPasswordResetUseCase] Email no configurado; se omite envio SMTP.');
+                const output: RequestPasswordResetOutput = {
+                    message: "Se ha generado un enlace de recuperación",
+                };
+                if (env.node_env !== "production") {
+                    output.previewUrl = resetUrl;
+                }
+                return ok({
+                    ...output,
+                });
+            }
             
             console.log('📧 [RequestPasswordResetUseCase] Enviando email...');
             await this.mailer.sendPasswordResetEmail({ to: user.email, resetUrl });
