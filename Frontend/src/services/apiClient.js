@@ -6,7 +6,12 @@ import {
   clearAuthStorage,
 } from "../utils/authStorage";
 
-const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const rawBaseURL = import.meta.env.VITE_API_URL || "/api";
+const normalizedBaseURL = rawBaseURL.replace(/\/+$/, "");
+const baseURL =
+  normalizedBaseURL === "/api" || normalizedBaseURL.endsWith("/api")
+    ? normalizedBaseURL
+    : `${normalizedBaseURL}/api`;
 
 // Cliente principal (con interceptor de auth)
 export const api = axios.create({

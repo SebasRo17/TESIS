@@ -29,6 +29,7 @@ export interface RegisterOutput {
     };
     accessToken: string;
     refreshToken: string;
+    verificationUrl?: string;
 }
 
 export class RegisterUseCase {
@@ -132,15 +133,35 @@ export class RegisterUseCase {
 
             const { env } = await import('../../../config/env');
             const verificationUrl = `${env.frontendUrl}/verify-email?uid=${newUser.id}&token=${rawToken}`;
-            
-            await this.emailService.sendVerificationEmail({
-                to: newUser.email,
-                verificationUrl,
-            });
 
-            console.log('✅ [RegisterUseCase] Email de verificación enviado');
+            const mailConfigured = Boolean(
+                env.mail.user &&
+                (
+                    env.mail.pass ||
+                    (env.gmail.clientId && env.gmail.clientSecret && env.gmail.refreshToken)
+                )
+            );
 
-            return ok({
+            let verificationEmailSent = false;
+            if (!mailConfigured) {
+                console.warn('[RegisterUseCase] Email no configurado; se omite envio SMTP de verificacion.');
+            } else {
+                try {
+                    await this.emailService.sendVerificationEmail({
+                        to: newUser.email,
+                        verificationUrl,
+                    });
+                    verificationEmailSent = true;
+                    console.log('✅ [RegisterUseCase] Email de verificación enviado');
+                } catch (emailError) {
+                    if (env.node_env === 'production') {
+                        throw emailError;
+                    }
+                    console.warn('[RegisterUseCase] No se pudo enviar email de verificacion; registro continua en desarrollo.', emailError);
+                }
+            }
+
+            const output: RegisterOutput = {
                 user: {
                     id: newUser.id,
                     email: newUser.email,
@@ -149,7 +170,13 @@ export class RegisterUseCase {
                 },
                 accessToken,
                 refreshToken,
-            });
+            };
+
+            if (!verificationEmailSent && env.node_env !== 'production') {
+                output.verificationUrl = verificationUrl;
+            }
+
+            return ok(output);
         } catch (error) {
             console.error('RegisterUseCase error:', error);
             return err(

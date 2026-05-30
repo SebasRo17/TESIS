@@ -73,12 +73,54 @@ function getExamQuestionCount(exam) {
   return Number(exam?.itemCount || exam?.itemsCount || exam?.questionCount || 0);
 }
 
+function isMultiChoiceItem(item) {
+  return String(item?.type || "").toLowerCase() === "multi_choice";
+}
+
+function normalizeStoredAnswer(answer) {
+  if (Array.isArray(answer)) {
+    return answer.map((value) => String(value));
+  }
+
+  if (typeof answer === "string") {
+    const trimmed = answer.trim();
+    if (!trimmed) return [];
+
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.map((value) => String(value));
+        }
+      } catch {
+        // fallback below
+      }
+    }
+
+    if (trimmed.includes(",")) {
+      return trimmed.split(",").map((value) => value.trim()).filter(Boolean);
+    }
+
+    return [trimmed];
+  }
+
+  return [];
+}
+
+function formatAnswerLabels(answer, options) {
+  const values = normalizeStoredAnswer(answer);
+  if (!values.length) return "Sin respuesta";
+
+  const optionMap = new Map((Array.isArray(options) ? options : []).map((option) => [String(option.id), option.text]));
+  return values.map((value) => optionMap.get(String(value)) || String(value)).join(", ");
+}
+
 function isDurationGeneratedColumnError(error) {
   const message = String(
     error?.response?.data?.message ||
-      error?.response?.data?.error ||
-      error?.message ||
-      ""
+    error?.response?.data?.error ||
+    error?.message ||
+    ""
   ).toLowerCase();
 
   return message.includes("duration_sec") && message.includes("generated column");
@@ -108,6 +150,7 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState(null);
+  const [selectedOptions, setSelectedOptions] = useState([]);
   const [submittedCount, setSubmittedCount] = useState(0);
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
   const [windowBootstrapped, setWindowBootstrapped] = useState(false);
@@ -166,6 +209,12 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
   }, [questions.length, selectedExam?.itemCount, selectedExam?.itemsCount, selectedExam?.questionCount]);
 
   const currentItem = useMemo(() => questions[currentIndex] ?? null, [questions, currentIndex]);
+  const currentItemIsMultiChoice = useMemo(() => isMultiChoiceItem(currentItem), [currentItem]);
+
+  const attemptResponsesByItemId = useMemo(() => {
+    const entries = Array.isArray(attemptDetail?.responses) ? attemptDetail.responses : [];
+    return new Map(entries.map((response) => [response.itemId, response]));
+  }, [attemptDetail?.responses]);
 
   const progressPercent = useMemo(() => {
     if (!totalQuestions) return 0;
@@ -222,6 +271,7 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
       setSubmittedCount(0);
       setCurrentIndex(0);
       setSelectedOption(null);
+      setSelectedOptions([]);
 
       const createdAttempt = await startExamAttempt(selectedExam.id);
       setAttempt(createdAttempt);
@@ -281,9 +331,9 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
         setAttempt((prev) =>
           prev
             ? {
-                ...prev,
-                completedAt: new Date().toISOString(),
-              }
+              ...prev,
+              completedAt: new Date().toISOString(),
+            }
             : prev
         );
         setAttemptDetail(detail || attemptDetail || attempt);
@@ -316,7 +366,8 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
 
   const submitAndGoNext = async () => {
     if (!attempt?.id || !currentItem?.id) return;
-    if (selectedOption == null) return;
+    const answerPayload = currentItemIsMultiChoice ? selectedOptions : selectedOption;
+    if (currentItemIsMultiChoice ? selectedOptions.length === 0 : selectedOption == null) return;
 
     try {
       setSubmittingAnswer(true);
@@ -324,7 +375,7 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
 
       await submitExamAttemptResponse(attempt.id, {
         itemId: currentItem.id,
-        answer: selectedOption,
+        answer: answerPayload,
         timeSpentSec: 0,
         hintsUsed: 0,
       });
@@ -333,6 +384,7 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
       const newCount = Math.min(submittedCount + 1, questions.length || submittedCount + 1);
       setSubmittedCount(newCount);
       setSelectedOption(null);
+      setSelectedOptions([]);
 
       if (isLast) {
         await finishAttemptAndSession();
@@ -364,7 +416,7 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
 
   if (variant === "preview") {
     return (
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white/90 shadow-sm backdrop-blur">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white/90 shadow-sm">
         <div className="relative bg-gradient-to-br from-teal-500/15 via-cyan-500/10 to-sky-500/15 px-6 py-6">
           <div className="absolute inset-0 pointer-events-none opacity-70 [background:radial-gradient(circle_at_20%_20%,rgba(20,184,166,0.22),transparent_36%),radial-gradient(circle_at_80%_30%,rgba(14,165,233,0.18),transparent_38%),radial-gradient(circle_at_70%_80%,rgba(59,130,246,0.16),transparent_40%)]" />
           <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -424,7 +476,7 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
                     >
                       <p className="text-sm font-black text-slate-900">{exam.title || "Simulador"}</p>
                       <p className="mt-1 text-xs text-slate-600">
-                        Modo {exam.mode || "diagnostic"} · {minutes} min · {questionCount || "--"} preguntas
+                        Modo {exam.mode || "diagnóstico"} · {minutes} min
                       </p>
                     </button>
                   );
@@ -526,24 +578,34 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
                     <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.16em] text-teal-700">
                       <HelpCircle size={14} /> Pregunta {currentIndex + 1} de {Math.max(1, totalQuestions)}
                     </div>
-                    <div className="h-2 w-40 overflow-hidden rounded-full bg-slate-200">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 transition-all"
-                        style={{ width: `${progressPercent}%` }}
-                      />
-                    </div>
+                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-slate-600">
+                      {currentItemIsMultiChoice ? "Selección múltiple" : "Selección única"}
+                    </span>
                   </div>
 
                   <h3 className="mt-5 text-2xl font-black leading-tight text-slate-900">{currentItem.stem || "Pregunta sin enunciado"}</h3>
 
                   <div className="mt-5 grid gap-3">
                     {(Array.isArray(currentItem.options) ? currentItem.options : []).map((option) => {
-                      const active = String(selectedOption) === String(option.id);
+                      const active = currentItemIsMultiChoice
+                        ? selectedOptions.includes(String(option.id))
+                        : String(selectedOption) === String(option.id);
                       return (
                         <button
                           key={option.id}
                           type="button"
-                          onClick={() => setSelectedOption(option.id)}
+                          onClick={() => {
+                            if (currentItemIsMultiChoice) {
+                              setSelectedOptions((current) => (
+                                current.includes(String(option.id))
+                                  ? current.filter((value) => value !== String(option.id))
+                                  : [...current, String(option.id)]
+                              ));
+                              return;
+                            }
+
+                            setSelectedOption(String(option.id));
+                          }}
                           className={[
                             "w-full rounded-2xl border px-4 py-3 text-left transition",
                             active
@@ -567,7 +629,7 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
                     <button
                       type="button"
                       onClick={submitAndGoNext}
-                      disabled={submittingAnswer || actionLoading || selectedOption == null}
+                      disabled={submittingAnswer || actionLoading || (currentItemIsMultiChoice ? selectedOptions.length === 0 : selectedOption == null)}
                       className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {(submittingAnswer || actionLoading) ? <Loader2 size={16} className="animate-spin" /> : null}
@@ -582,14 +644,70 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
                   </p>
                 </div>
               ) : finished ? (
-                <div className="rounded-[1.75rem] border border-emerald-200 bg-emerald-50 p-6 text-center">
-                  <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-700">Simulación completada</p>
-                  <p className="mt-2 text-2xl font-black text-emerald-900">
-                    Puntaje: {attemptDetail?.scoreNorm ?? attempt?.scoreNorm ?? 0}%
-                  </p>
-                  <p className="mt-2 text-sm text-emerald-800">
-                    Puedes cerrar esta ventana para volver al curso.
-                  </p>
+                <div className="space-y-5">
+                  <div className="rounded-[1.75rem] border border-emerald-200 bg-emerald-50 p-6 text-center">
+                    <p className="text-sm font-black uppercase tracking-[0.18em] text-emerald-700">Simulación completada</p>
+                    <p className="mt-2 text-2xl font-black text-emerald-900">
+                      Puntaje: {attemptDetail?.scoreNorm ?? attempt?.scoreNorm ?? 0}%
+                    </p>
+                    <p className="mt-2 text-sm text-emerald-800">
+                      Correctas: {attemptDetail?.metadata?.correctAnswers ?? 0} de {attemptDetail?.metadata?.totalItems ?? totalQuestions}
+                    </p>
+                    <p className="mt-1 text-sm text-emerald-800">
+                      Puedes cerrar esta ventana para volver al curso.
+                    </p>
+                  </div>
+
+                  {attemptDetail ? (
+                    <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Revisión del intento</p>
+                          <h3 className="mt-1 text-xl font-black text-slate-900">Detalle de respuestas</h3>
+                        </div>
+                        <div className="text-right text-xs text-slate-500">
+                          <p>Inicio: {attemptDetail.startedAt ? new Date(attemptDetail.startedAt).toLocaleString("es-EC") : "-"}</p>
+                          <p>Cierre: {attemptDetail.completedAt ? new Date(attemptDetail.completedAt).toLocaleString("es-EC") : "-"}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <Stat value={attemptDetail?.metadata?.answeredItems ?? attemptDetail?.responses?.length ?? 0} label="Respondidas" tone="border-sky-100 bg-sky-50/70" />
+                        <Stat value={attemptDetail?.metadata?.correctAnswers ?? 0} label="Correctas" tone="border-emerald-100 bg-emerald-50/70" />
+                        <Stat value={attemptDetail?.metadata?.accuracy != null ? `${Math.round(Number(attemptDetail.metadata.accuracy) * 100)}%` : "-"} label="Precisión" tone="border-cyan-100 bg-cyan-50/70" />
+                      </div>
+
+                      <div className="mt-5 space-y-3">
+                        {questions.map((item, index) => {
+                          const response = attemptResponsesByItemId.get(item.id) || null;
+                          const options = Array.isArray(item.options) ? item.options : [];
+                          return (
+                            <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+                                    Pregunta {index + 1} · {isMultiChoiceItem(item) ? "Selección múltiple" : "Selección única"}
+                                  </p>
+                                  <p className="mt-1 text-sm font-bold text-slate-900">{item.stem}</p>
+                                </div>
+                                <span className={response?.isCorrect ? "rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1 text-[11px] font-black text-emerald-700" : "rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-[11px] font-black text-rose-700"}>
+                                  {response ? (response.isCorrect ? "Correcta" : "Incorrecta") : "Sin respuesta"}
+                                </span>
+                              </div>
+                              <p className="mt-3 text-sm text-slate-700">
+                                Tu respuesta: {response ? formatAnswerLabels(response.answer, options) : "Sin respuesta"}
+                              </p>
+                              {response ? (
+                                <p className="mt-1 text-xs text-slate-500">
+                                  Puntaje otorgado: {response.awardedScore ?? 0}
+                                </p>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               ) : !selectedExam ? (
                 <div className="rounded-[1.75rem] border border-amber-200 bg-amber-50 p-6 text-center">
@@ -622,7 +740,14 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
               <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-700">Preguntas</p>
               <p className="mt-1 text-xs text-slate-600">Visualiza cuáles ya completaste y en cuál vas.</p>
 
-              <div className="mt-3 max-h-52 overflow-auto pr-1">
+              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200 mt-3">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 transition-all"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+
+              <div className="mt-3 max-h-52 overflow-auto">
                 <div className="grid grid-cols-5 gap-2">
                   {questionSlots.length ? (
                     questionSlots.map((index) => {

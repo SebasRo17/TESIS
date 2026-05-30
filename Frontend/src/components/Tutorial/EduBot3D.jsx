@@ -34,6 +34,8 @@ const RobotModel = ({ interactive, mode = 'idle', stepIndex = 0, pointDirection 
         if (tourStep === 1) bodyYaw = -0.55; // ← era  0.55
         if (tourStep === 2) bodyYaw = 0.40; // ← era -0.40
         if (tourStep === 3) bodyYaw = 0.00;
+      } else if (isTips) {
+        bodyYaw = pointDirection === 'left' ? 0.55 : -0.75;
       }
 
       group.current.position.y = baseY + Math.sin(t * 1.35) * floatAmp;
@@ -53,8 +55,8 @@ const RobotModel = ({ interactive, mode = 'idle', stepIndex = 0, pointDirection 
         if (tourStep === 2) { headX = -0.0; headY = 0.30; } // ← era -0.30
         if (tourStep === 3) { headX = -0.28; headY = 0.00; }
       } else if (isTips) {
-        headX = -0.08 + Math.sin(t * 1.5) * 0.04;
-        headY = -0.20 + Math.sin(t * 0.9) * 0.06; // leve giro hacia las tarjetas
+        headX = -0.04 + Math.sin(t * 1.5) * 0.03;
+        headY = pointDirection === 'left' ? 0.28 : -0.28;
       }
       nodes.Head.rotation.x = THREE.MathUtils.lerp(nodes.Head.rotation.x, headX, 0.06);
       nodes.Head.rotation.y = THREE.MathUtils.lerp(nodes.Head.rotation.y, headY, 0.06);

@@ -1,6 +1,6 @@
 // src/components/Subject/SubjectView.jsx
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { ArrowLeft, BookOpen, Play, LineChart } from "lucide-react";
 
 import SubjectOverview from "./SubjectOverview";
@@ -9,9 +9,12 @@ import SubjectSimulator from "./SubjectSimulator";
 import TopicDetail from "../Topic/TopicDetail";
 
 import { getCourseBySlugRequest } from "../../services/coursesService";
+import { getTopicById } from "../../services/topicsService";
+import { getLessonById } from "../../services/lessonsService";
 
 export default function SubjectView({ onBack }) {
   const { slug } = useParams(); // en tu ruta es /app/subject/:slug
+  const location = useLocation();
 
   const [activeTab, setActiveTab] = useState("resumen");
   const [course, setCourse] = useState(null);
@@ -20,6 +23,7 @@ export default function SubjectView({ onBack }) {
   // modo detalle de tema
   const [mode, setMode] = useState("tabs"); // "tabs" | "topic"
   const [selectedTopic, setSelectedTopic] = useState(null);
+  const [initialLessonId, setInitialLessonId] = useState(null);
 
   const tabs = [
     { id: "resumen", label: "Resumen", icon: LineChart },
@@ -68,15 +72,73 @@ export default function SubjectView({ onBack }) {
   const handleBackFromTopic = () => {
     setMode("tabs");
     setSelectedTopic(null);
+    setInitialLessonId(null);
   };
 
+  useEffect(() => {
+    let alive = true;
+
+    const loadFromQuery = async () => {
+      const params = new URLSearchParams(location.search || "");
+      const refType = String(params.get("refType") || "").toLowerCase();
+      const refId = Number(params.get("refId"));
+
+      if (!refType) return;
+
+      if (refType === "exam") {
+        setActiveTab("simulador");
+        setMode("tabs");
+        setInitialLessonId(null);
+        return;
+      }
+
+      if (!Number.isFinite(refId) || refId <= 0) {
+        setActiveTab("temas");
+        return;
+      }
+
+      try {
+        if (refType === "topic") {
+          const topicData = await getTopicById(refId);
+          if (!alive || !topicData?.id) return;
+          setActiveTab("temas");
+          setInitialLessonId(null);
+          handleOpenTopic(topicData);
+          return;
+        }
+
+        if (refType === "lesson") {
+          const lessonData = await getLessonById(refId);
+          const topicId = lessonData?.primaryTopicId || lessonData?.topicId;
+          if (!alive || !topicId) return;
+          const topicData = await getTopicById(topicId);
+          if (!alive || !topicData?.id) return;
+          setActiveTab("temas");
+          setInitialLessonId(refId);
+          handleOpenTopic(topicData);
+          return;
+        }
+
+        setActiveTab("temas");
+      } catch {
+        if (!alive) return;
+        setActiveTab("temas");
+      }
+    };
+
+    loadFromQuery();
+    return () => {
+      alive = false;
+    };
+  }, [location.search, slug]);
+
   if (mode === "topic" && selectedTopic) {
-    return <TopicDetail topic={selectedTopic} onBack={handleBackFromTopic} />;
+    return <TopicDetail topic={selectedTopic} onBack={handleBackFromTopic} initialLessonId={initialLessonId} />;
   }
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-[radial-gradient(circle_at_top,rgba(20,184,166,0.12),transparent_34%),linear-gradient(180deg,#f8fffe_0%,#eefbff_46%,#f8fafc_100%)]">
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7.5xl px-6 py-8">
         <button
           onClick={onBack}
           className="relative inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900"

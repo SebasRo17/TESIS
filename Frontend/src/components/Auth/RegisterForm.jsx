@@ -517,7 +517,7 @@ export default function RegisterForm({ onToggleMode }) {
             {/* Botón */}
             <button
               disabled={isLoading}
-              className="w-full mt-2 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-cyan-500 text-white font-bold text-base shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-teal-500/30 hover:scale-[1.01] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-300"
+              className="w-full mt-2 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-cyan-500 text-white font-bold text-base shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/30 hover:scale-[1.01] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-300"
             >
               {isLoading ? "Creando..." : "Crear cuenta"}
             </button>

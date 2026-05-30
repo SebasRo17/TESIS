@@ -39,8 +39,6 @@ export default function VerifyEmailPage() {
   const lastKeyRef = useRef(null);
 
   useEffect(() => {
-    let cancelled = false;
-
     async function run() {
       if (!uid || !token) {
         setStatus("error");
@@ -63,14 +61,15 @@ export default function VerifyEmailPage() {
       lastKeyRef.current = key;
 
       try {
+        console.info("[VerifyEmailPage] Iniciando verificación", { uid, hasToken: Boolean(token) });
         const data = await verifyEmailRequest({ userId: uid, token });
-        if (cancelled) return;
 
+        console.info("[VerifyEmailPage] Verificación completada", data);
         sessionStorage.setItem(key, "success");
         setStatus("success");
         setMessage(normalizeSuccessMessage(data?.message));
       } catch (e) {
-        if (cancelled) return;
+        console.error("[VerifyEmailPage] Error verificando email", e);
 
         const raw =
           e?.response?.data?.error ||
@@ -100,9 +99,6 @@ export default function VerifyEmailPage() {
     }
 
     run();
-    return () => {
-      cancelled = true;
-    };
   }, [uid, token]);
 
   return (

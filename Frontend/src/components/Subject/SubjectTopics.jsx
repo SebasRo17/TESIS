@@ -51,23 +51,39 @@ function pseudoProgressFromId(id) {
   return clamp01(v === 0 ? 0.2 : v);
 }
 
-function TopicCard({ node, isSelected, onSelect, lessonCount }) {
-  const progress = clamp01(node.progress ?? pseudoProgressFromId(node.id));
+function TopicCard({ node, isSelected, onSelect, lessonCount, loadingMastery }) {
+  const progress = loadingMastery ? null : clamp01(node.progress ?? 0);
+  const progressPercent = progress == null ? null : Math.round(progress * 100);
   const done = progress >= 1;
   const depth = node._depth || 0;
-  const depthPadding = Math.min(depth * 14, 42);
+  const depthPadding = Math.min(depth * 18, 54);
+  const connectorOffset = Math.max(depthPadding - 10, 0);
 
   return (
     <button
       onClick={() => onSelect(node.id)}
       className={[
-        "w-full text-left rounded-2xl border p-4 transition group relative overflow-hidden",
+        "w-full text-left rounded-2xl border p-4 transition group relative overflow-visible",
         isSelected
           ? "border-cyan-200 bg-cyan-50/60 shadow-sm"
           : "border-slate-200 bg-white hover:bg-slate-50",
       ].join(" ")}
       style={{ marginLeft: `${depthPadding}px`, width: `calc(100% - ${depthPadding}px)` }}
     >
+      {depth > 0 ? (
+        <div
+          className="pointer-events-none absolute top-0 h-full w-px bg-cyan-200/80"
+          style={{ left: `-${connectorOffset}px` }}
+        />
+      ) : null}
+
+      {depth > 0 ? (
+        <div
+          className="pointer-events-none absolute top-7 h-px bg-cyan-200/80"
+          style={{ left: `-${connectorOffset}px`, width: `${Math.max(connectorOffset, 8)}px` }}
+        />
+      ) : null}
+
       {/* glow suave */}
       {isSelected ? (
         <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-cyan-400/20 blur-2xl" />
@@ -77,10 +93,10 @@ function TopicCard({ node, isSelected, onSelect, lessonCount }) {
         <div
           className={[
             "h-11 w-11 rounded-2xl flex items-center justify-center shrink-0",
-            done ? "bg-cyan-600 text-white" : "bg-cyan-500/15 text-cyan-700",
+            done ? "bg-cyan-600 text-white" : loadingMastery ? "bg-cyan-500/10 text-cyan-500" : "bg-cyan-500/15 text-cyan-700",
           ].join(" ")}
         >
-          {done ? <CheckCircle2 size={20} /> : <Circle size={18} />}
+            {done ? <CheckCircle2 size={20} /> : <Circle size={18} />}
         </div>
 
         <div className="min-w-0 flex-1">
@@ -106,10 +122,10 @@ function TopicCard({ node, isSelected, onSelect, lessonCount }) {
           </div>
 
           <div className="mt-3">
-            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
               <div
-                className="h-full rounded-full bg-cyan-500"
-                style={{ width: `${Math.round(progress * 100)}%` }}
+                  className={["h-full rounded-full bg-cyan-500 transition-all", loadingMastery ? "animate-pulse" : ""].join(" ")}
+                  style={{ width: progressPercent == null ? "24%" : `${progressPercent}%` }}
               />
             </div>
 
@@ -118,7 +134,7 @@ function TopicCard({ node, isSelected, onSelect, lessonCount }) {
                 {lessonCount ? `${lessonCount} lecciones` : " "}
               </span>
               <span className={done ? "text-cyan-700" : "text-slate-500"}>
-                {Math.round(progress * 100)}%
+                {progressPercent == null ? "..." : `${progressPercent}%`}
               </span>
             </div>
           </div>
@@ -134,15 +150,12 @@ function LessonItem({ lesson, onOpenLesson }) {
       onClick={() => onOpenLesson?.(lesson)}
       className="w-full text-left rounded-2xl border border-slate-200 bg-white p-4 hover:bg-slate-50 transition"
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3">
         <div className="h-10 w-10 rounded-2xl bg-sky-500/15 text-sky-700 flex items-center justify-center">
           <PlayCircle size={18} />
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-bold text-slate-900 truncate">{lesson.title}</p>
-          <p className="text-xs text-slate-500">
-            {lesson.canonicalSlug ? `Slug: ${lesson.canonicalSlug}` : " "}
-          </p>
         </div>
       </div>
     </button>
@@ -271,7 +284,7 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
   const [topicLessons, setTopicLessons] = useState([]);
   const [loadingTopicLessons, setLoadingTopicLessons] = useState(false);
   const [topicMasteryMap, setTopicMasteryMap] = useState({});
-  const [loadingMastery, setLoadingMastery] = useState(false);
+  const [loadingMastery, setLoadingMastery] = useState(true);
 
   const [masteryJournal, setMasteryJournal] = useState([]);
   const [loadingJournal, setLoadingJournal] = useState(false);
@@ -379,6 +392,7 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
     async function loadMasteryByTopic() {
       if (!flatTopics.length) {
         setTopicMasteryMap({});
+        setLoadingMastery(false);
         return;
       }
 
@@ -429,7 +443,7 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
       try {
         setLoadingJournal(true);
         setJournalError("");
-        const response = await getTopicMasteryJournal(selectedId, { limit: 20, offset: 0 });
+        const response = await getTopicMasteryJournal(selectedId, { limit: 100, offset: 0 });
         if (!alive) return;
         setMasteryJournal(Array.isArray(response?.items) ? response.items : []);
       } catch {
@@ -503,11 +517,12 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                     progress:
                       topicMasteryMap[t.id] != null
                         ? topicMasteryMap[t.id] / 100
-                        : t.progress,
+                        : 0,
                   }}
                   isSelected={selectedId === t.id}
                   onSelect={setSelectedId}
                   lessonCount={lessonsCountMap[t.id] || 0}
+                  loadingMastery={loadingMastery}
                 />
               ))
             )}
@@ -521,7 +536,7 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
           {/* header del panel derecho */}
           <div className="relative p-6 bg-gradient-to-r from-teal-500/12 via-cyan-500/10 to-sky-500/10">
             <div className="absolute inset-0 pointer-events-none opacity-60 [background:radial-gradient(circle_at_85%_20%,rgba(20,184,166,0.18),transparent_45%),radial-gradient(circle_at_70%_80%,rgba(14,165,233,0.14),transparent_45%)]" />
-            <div className="relative flex items-start justify-between gap-4">
+            <div className="relative flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <div className="inline-flex items-center gap-2 rounded-full bg-teal-100 px-3 py-1 text-xs font-extrabold text-teal-800">
                   <Sparkles size={14} />
@@ -540,7 +555,7 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                 onClick={handleOpenInStudy}
                 disabled={!detail}
                 className={[
-                  "shrink-0 rounded-2xl px-4 py-2 text-sm font-extrabold transition",
+                  "shrink-0 rounded-2xl px-4 py-2 text-sl font-bold transition w-35 h-10 cursor-pointer",
                   detail
                     ? "bg-gradient-to-r from-teal-500 to-cyan-500 text-white hover:brightness-105"
                     : "bg-slate-200 text-slate-500 cursor-not-allowed",
@@ -580,7 +595,7 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                         <button
                           key={c.id}
                           onClick={() => setSelectedId(c.id)}
-                          className="text-left rounded-2xl border border-cyan-200 bg-cyan-50/50 p-4 hover:bg-cyan-50 transition"
+                          className="text-left rounded-2xl border border-cyan-200 bg-cyan-50/50 p-4 cursor-pointer hover:bg-cyan-50 transition"
                         >
                           <p className="font-extrabold text-slate-900">{c.name}</p>
                           <p className="mt-1 text-xs text-slate-600 line-clamp-2">

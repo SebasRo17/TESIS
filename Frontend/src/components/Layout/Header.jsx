@@ -39,7 +39,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4">
+      <div className="mx-auto flex h-16 w-full max-w-7.5xl items-center justify-between px-4">
         {/* Left: brand */}
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-2xl bg-cyan-50 text-cyan-700 font-extrabold">

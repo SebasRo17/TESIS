@@ -13,8 +13,13 @@ export function createApp() {
   app.use(express.urlencoded({ extended: true }));
 
   // Documentación Swagger
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  app.get('/api-docs-json', (_req, res) => {
+    res.json(swaggerSpec);
+  });
+
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(undefined, {
     swaggerOptions: {
+      url: '/api-docs-json',
       persistAuthorization: true,
       displayRequestDuration: true,
     },

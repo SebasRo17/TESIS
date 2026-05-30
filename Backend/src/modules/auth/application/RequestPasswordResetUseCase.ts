@@ -59,9 +59,10 @@ export class RequestPasswordResetUseCase {
 
             const mailConfigured = Boolean(
                 env.mail.user &&
-                env.gmail.clientId &&
-                env.gmail.clientSecret &&
-                env.gmail.refreshToken
+                (
+                    env.mail.pass ||
+                    (env.gmail.clientId && env.gmail.clientSecret && env.gmail.refreshToken)
+                )
             );
 
             if (!mailConfigured) {

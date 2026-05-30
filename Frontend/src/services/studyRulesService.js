@@ -5,6 +5,10 @@ function toSafeNumber(value, fallback = 0) {
 	return Number.isFinite(n) ? n : fallback;
 }
 
+function unwrap(payload) {
+	return payload?.data ?? payload ?? null;
+}
+
 function normalizeRule(rule) {
 	if (!rule || typeof rule !== "object") return null;
 
@@ -20,7 +24,7 @@ function normalizeRule(rule) {
 }
 
 function normalizeRulesList(payload) {
-	const raw = payload?.data ?? payload ?? [];
+	const raw = unwrap(payload) ?? [];
 	if (!Array.isArray(raw)) return [];
 	return raw.map(normalizeRule).filter(Boolean);
 }

@@ -4,27 +4,65 @@ import type { EmailService } from "../domain/AuthPorts";
 
 export class NodemailerEmailService implements EmailService {
     private transporter;
+    private authMode: 'smtp-password' | 'oauth2' | 'none';
 
     constructor() {
-        console.log('🔧 [NodemailerEmailService] Inicializando con OAuth2:', {
+        const hasSmtpPassword = Boolean(env.mail.user && env.mail.pass);
+        const hasOauth2 = Boolean(
+            env.mail.user &&
+            env.gmail.clientId &&
+            env.gmail.clientSecret &&
+            env.gmail.refreshToken
+        );
+
+        this.authMode = hasSmtpPassword ? 'smtp-password' : hasOauth2 ? 'oauth2' : 'none';
+
+        console.log('🔧 [NodemailerEmailService] Inicializando SMTP:', {
             host: env.mail.host,
             port: env.mail.port,
+            secure: env.mail.secure,
             user: env.mail.user,
+            password: hasSmtpPassword ? '✓' : '✗',
             clientId: env.gmail.clientId ? '✓' : '✗',
             clientSecret: env.gmail.clientSecret ? '✓' : '✗',
-            refreshToken: env.gmail.refreshToken ? '✓' : '✗'
+            refreshToken: env.gmail.refreshToken ? '✓' : '✗',
+            authMode: this.authMode,
         });
 
-        this.transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                type: 'OAuth2',
-                user: env.mail.user,
-                clientId: env.gmail.clientId,
-                clientSecret: env.gmail.clientSecret,
-                refreshToken: env.gmail.refreshToken,
-            },
-        });
+        this.transporter = nodemailer.createTransport(this.createTransportOptions());
+    }
+
+    private createTransportOptions() {
+        const base = {
+            host: env.mail.host,
+            port: env.mail.port,
+            secure: env.mail.secure,
+        };
+
+        if (this.authMode === 'smtp-password') {
+            return {
+                ...base,
+                auth: {
+                    user: env.mail.user,
+                    pass: env.mail.pass,
+                },
+            };
+        }
+
+        if (this.authMode === 'oauth2') {
+            return {
+                ...base,
+                auth: {
+                    type: 'OAuth2' as const,
+                    user: env.mail.user,
+                    clientId: env.gmail.clientId,
+                    clientSecret: env.gmail.clientSecret,
+                    refreshToken: env.gmail.refreshToken,
+                },
+            };
+        }
+
+        return base;
     }
 
     async sendPasswordResetEmail(params: { to: string; resetUrl: string }): Promise<void> {
@@ -32,8 +70,8 @@ export class NodemailerEmailService implements EmailService {
             console.log('📧 [NodemailerEmailService] Intentando enviar email:', {
                 from: env.mail.from,
                 to: params.to,
-                service: 'gmail',
-                auth: 'OAuth2'
+                host: env.mail.host,
+                auth: this.authMode,
             });
 
             const info = await this.transporter.sendMail({
