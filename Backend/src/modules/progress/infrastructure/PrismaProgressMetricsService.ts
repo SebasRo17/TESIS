@@ -6,6 +6,7 @@ import type {
   LessonActivity,
   ExamActivity,
 } from '../domain/RecentActivity';
+import type { UserProgressSummary, CourseProgressSummaryItem } from '../domain/UserProgressSummary';
 
 /**
  * Servicio de métricas agregadas de progreso
@@ -167,6 +168,64 @@ export class PrismaProgressMetricsService implements IProgressMetricsService {
       lastLessonActivity,
       lastExamActivity,
       lastActivityDate,
+    };
+  }
+
+  async getUserProgressSummary(userId: number): Promise<UserProgressSummary> {
+    const courseIds = await this.prisma.lesson_progress.findMany({
+      where: { user_id: userId },
+      select: { lessons: { select: { course_id: true } } },
+      distinct: ['lesson_id'],
+    });
+
+    const uniqueCourseIds = [
+      ...new Set(courseIds.map((r) => r.lessons.course_id)),
+    ];
+
+    const courses: CourseProgressSummaryItem[] = [];
+
+    for (const courseId of uniqueCourseIds) {
+      const course = await this.prisma.courses.findUnique({
+        where: { id: courseId },
+        select: { id: true, title: true, code: true },
+      });
+      if (!course) continue;
+
+      const progress = await this.getCourseProgress(userId, courseId);
+
+      courses.push({
+        courseId: course.id,
+        courseTitle: course.title,
+        courseCode: course.code,
+        totalLessons: progress.totalLessons,
+        completedLessons: progress.completedLessons,
+        inProgressLessons: progress.inProgressLessons,
+        totalTimeSpentSec: progress.totalTimeSpentSec,
+        completionPercentage: progress.completionPercentage,
+        lastActivityAt: progress.lastActivityAt,
+      });
+    }
+
+    const totalCompletedLessons = courses.reduce((s, c) => s + c.completedLessons, 0);
+    const totalInProgressLessons = courses.reduce((s, c) => s + c.inProgressLessons, 0);
+    const totalTimeSpentSec = courses.reduce((s, c) => s + c.totalTimeSpentSec, 0);
+    const totalLessons = courses.reduce((s, c) => s + c.totalLessons, 0);
+    const overallCompletionPercentage =
+      totalLessons > 0
+        ? Math.round((totalCompletedLessons / totalLessons) * 100 * 100) / 100
+        : 0;
+
+    const recentActivity = await this.getRecentActivity(userId);
+
+    return {
+      userId,
+      totalCourses: courses.length,
+      totalCompletedLessons,
+      totalInProgressLessons,
+      totalTimeSpentSec,
+      overallCompletionPercentage,
+      courses,
+      recentActivity,
     };
   }
 }

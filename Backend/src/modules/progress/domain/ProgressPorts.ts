@@ -6,6 +6,7 @@ import type {
 } from './LessonProgress';
 import type { CourseProgress } from './CourseProgress';
 import type { RecentActivity } from './RecentActivity';
+import type { UserProgressSummary } from './UserProgressSummary';
 
 /**
  * Puerto de repositorio para LessonProgress
@@ -83,4 +84,9 @@ export interface IProgressMetricsService {
    * Obtiene la actividad reciente del usuario
    */
   getRecentActivity(userId: number): Promise<RecentActivity>;
+
+  /**
+   * Obtiene el resumen de progreso general del usuario en todos los cursos
+   */
+  getUserProgressSummary(userId: number): Promise<UserProgressSummary>;
 }

@@ -51,6 +51,21 @@ export class PrismaLessonProgressRepository implements ILessonProgressRepository
                 title: true,
               },
             },
+            topics: {
+              select: {
+                name: true,
+              },
+            },
+            content_variants: {
+              where: { is_active: true },
+              select: {
+                id: true,
+                modality: true,
+                difficulty_profile: true,
+                est_minutes: true,
+              },
+              orderBy: { id: 'asc' },
+            },
           },
         },
       },
@@ -58,11 +73,23 @@ export class PrismaLessonProgressRepository implements ILessonProgressRepository
 
     if (!progress) return null;
 
-    return {
+    const result: LessonProgressDetail = {
       ...this.toDomain(progress),
       lessonTitle: progress.lessons.title,
       courseTitle: progress.lessons.courses.title,
+      contentVariants: progress.lessons.content_variants.map((cv) => ({
+        id: cv.id,
+        modality: cv.modality,
+        difficultyProfile: cv.difficulty_profile ?? '',
+        estimatedMinutes: cv.est_minutes ?? 0,
+      })),
     };
+
+    if (progress.lessons.topics?.name) {
+      result.topicName = progress.lessons.topics.name;
+    }
+
+    return result;
   }
 
   async findByUserId(userId: number, limit?: number): Promise<LessonProgress[]> {

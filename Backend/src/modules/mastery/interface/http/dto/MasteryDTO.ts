@@ -16,7 +16,7 @@ export const MasteryJournalQuerySchema = z.object({
 export const UpdateMasteryBodySchema = z.object({
   userId: z.number().int().positive(),
   topicId: z.number().int().positive(),
-  source: z.enum(['exam', 'response', 'manual', 'orchestrator']),
+  source: z.enum(['exam', 'response', 'manual', 'orchestrator', 'lesson']),
   delta: z.number().min(-1).max(1),
   evidence: z.unknown().optional(),
   observationsDelta: z.number().int().min(0).optional(),

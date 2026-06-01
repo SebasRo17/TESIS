@@ -8,6 +8,7 @@ import { GetContentVariantByIdUseCase } from '../../application/GetContentVarian
 import { RegisterContentEventUseCase } from '../../application/RegisterContentEventUseCase';
 import { GetContentPrerequisitesByLessonUseCase } from '../../application/GetContentPrerequisitesByLessonUseCase';
 import { PrismaContentRepository } from '../../infrastructure/PrismaContentRepository';
+import { GenerateContentUseCase } from '../../application/GenerateContentUseCase';
 import { ContentController } from './ContentController';
 import {
   LessonIdParamsSchema,
@@ -27,11 +28,14 @@ export function createContentRoutes(): Router {
   const registerContentEventUseCase = new RegisterContentEventUseCase(repository);
   const getPrerequisitesUseCase = new GetContentPrerequisitesByLessonUseCase(repository);
 
+  const generateContentUseCase = new GenerateContentUseCase(repository);
+
   const controller = new ContentController(
     getVariantsByLessonUseCase,
     getVariantByIdUseCase,
     registerContentEventUseCase,
-    getPrerequisitesUseCase
+    getPrerequisitesUseCase,
+    generateContentUseCase
   );
 
   router.get(
@@ -60,6 +64,12 @@ export function createContentRoutes(): Router {
     authMiddleware,
     validateRequest({ params: LessonIdParamsSchema }),
     controller.getPrerequisitesByLesson.bind(controller)
+  );
+
+  router.post(
+    '/content/generate',
+    authMiddleware,
+    controller.generateContent.bind(controller)
   );
 
   return router;

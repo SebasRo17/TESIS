@@ -6,6 +6,8 @@ import type { CompleteLessonProgressUseCase } from '../../application/CompleteLe
 import type { GetCourseProgressUseCase } from '../../application/GetCourseProgressUseCase';
 import type { GetRecentActivityUseCase } from '../../application/GetRecentActivityUseCase';
 import type { GetLessonProgressDetailUseCase } from '../../application/GetLessonProgressDetailUseCase';
+import type { GetUserProgressSummaryUseCase } from '../../application/GetUserProgressSummaryUseCase';
+import type { GetCourseTopicsProgressUseCase } from '../../application/GetCourseTopicsProgressUseCase';
 import type {
   LessonIdParams,
   CourseIdParams,
@@ -16,6 +18,7 @@ import {
   toLessonProgressDetailDTO,
   toCourseProgressDTO,
   toRecentActivityDTO,
+  toUserProgressSummaryDTO,
 } from './dto/ProgressDTO';
 
 /**
@@ -28,7 +31,9 @@ export class ProgressController {
     private readonly completeLessonProgressUseCase: CompleteLessonProgressUseCase,
     private readonly getCourseProgressUseCase: GetCourseProgressUseCase,
     private readonly getRecentActivityUseCase: GetRecentActivityUseCase,
-    private readonly getLessonProgressDetailUseCase: GetLessonProgressDetailUseCase
+    private readonly getLessonProgressDetailUseCase: GetLessonProgressDetailUseCase,
+    private readonly getUserProgressSummaryUseCase: GetUserProgressSummaryUseCase,
+    private readonly getCourseTopicsProgressUseCase: GetCourseTopicsProgressUseCase
   ) {}
 
   /**
@@ -180,6 +185,61 @@ export class ProgressController {
       res.status(200).json({
         success: true,
         data: toRecentActivityDTO(activity),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /me/progress/summary
+   * Obtener resumen general de progreso en todos los cursos
+   */
+  async getUserProgressSummary(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const userId = req.user!.id;
+
+      const summary = await this.getUserProgressSummaryUseCase.execute(userId);
+
+      res.status(200).json({
+        success: true,
+        data: toUserProgressSummaryDTO(summary),
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /me/courses/:courseId/topics/progress
+   * Obtener progreso agrupado por topics de un curso
+   */
+  async getCourseTopicsProgress(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      const { courseId } = req.params as unknown as CourseIdParams;
+
+      const result = await this.getCourseTopicsProgressUseCase.execute(userId, Number(courseId));
+
+      if (!result) {
+        res.status(404).json({
+          success: false,
+          error: { code: 'COURSE_NOT_FOUND', message: 'Curso no encontrado' },
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result,
       });
     } catch (error) {
       next(error);

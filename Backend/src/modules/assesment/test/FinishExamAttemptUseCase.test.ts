@@ -48,7 +48,8 @@ describe('FinishExamAttemptUseCase', () => {
     useCase = new FinishExamAttemptUseCase(
       mockExamAttemptRepository,
       mockItemResponseRepository,
-      mockExamRepository
+      mockExamRepository,
+      { findById: vi.fn(), findByIds: vi.fn().mockResolvedValue([]), findByTopicId: vi.fn(), findByExamId: vi.fn() }
     );
   });
 

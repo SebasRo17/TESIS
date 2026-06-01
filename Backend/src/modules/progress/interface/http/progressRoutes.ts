@@ -14,6 +14,13 @@ import { CompleteLessonProgressUseCase } from '../../application/CompleteLessonP
 import { GetCourseProgressUseCase } from '../../application/GetCourseProgressUseCase';
 import { GetRecentActivityUseCase } from '../../application/GetRecentActivityUseCase';
 import { GetLessonProgressDetailUseCase } from '../../application/GetLessonProgressDetailUseCase';
+import { GetUserProgressSummaryUseCase } from '../../application/GetUserProgressSummaryUseCase';
+import { GetCourseTopicsProgressUseCase } from '../../application/GetCourseTopicsProgressUseCase';
+
+// Import mastery
+import { PrismaMasteryRepository } from '../../../mastery/infrastructure/PrismaMasteryRepository';
+import { UpdateMasteryUseCase } from '../../../mastery/application/UpdateMasteryUseCase';
+import { PrismaLessonTopicLookup } from '../../infrastructure/PrismaLessonTopicLookup';
 
 // Import Prisma client
 import { prisma } from '../../../../infra/db/prisma';
@@ -30,13 +37,22 @@ export const createProgressRouter = (): Router => {
   // Inicializar casos de uso
   const startLessonProgressUseCase = new StartLessonProgressUseCase(progressRepository);
   const updateLessonProgressUseCase = new UpdateLessonProgressUseCase(progressRepository);
-  const completeLessonProgressUseCase = new CompleteLessonProgressUseCase(progressRepository);
+  const masteryRepository = new PrismaMasteryRepository(prisma);
+  const updateMasteryUseCase = new UpdateMasteryUseCase(masteryRepository);
+  const lessonTopicLookup = new PrismaLessonTopicLookup(prisma);
+  const completeLessonProgressUseCase = new CompleteLessonProgressUseCase(
+    progressRepository,
+    updateMasteryUseCase,
+    lessonTopicLookup
+  );
   const getCourseProgressUseCase = new GetCourseProgressUseCase(
     progressRepository,
     metricsService
   );
   const getRecentActivityUseCase = new GetRecentActivityUseCase(metricsService);
   const getLessonProgressDetailUseCase = new GetLessonProgressDetailUseCase(progressRepository);
+  const getUserProgressSummaryUseCase = new GetUserProgressSummaryUseCase(metricsService);
+  const getCourseTopicsProgressUseCase = new GetCourseTopicsProgressUseCase(prisma);
 
   // Inicializar controlador
   const controller = new ProgressController(
@@ -45,7 +61,9 @@ export const createProgressRouter = (): Router => {
     completeLessonProgressUseCase,
     getCourseProgressUseCase,
     getRecentActivityUseCase,
-    getLessonProgressDetailUseCase
+    getLessonProgressDetailUseCase,
+    getUserProgressSummaryUseCase,
+    getCourseTopicsProgressUseCase
   );
 
   // Rutas de progreso de lecciones
@@ -84,6 +102,18 @@ export const createProgressRouter = (): Router => {
     '/me/progress/recent',
     authMiddleware,
     controller.getRecentActivity.bind(controller)
+  );
+
+  router.get(
+    '/me/progress/summary',
+    authMiddleware,
+    controller.getUserProgressSummary.bind(controller)
+  );
+
+  router.get(
+    '/me/courses/:courseId/topics/progress',
+    authMiddleware,
+    controller.getCourseTopicsProgress.bind(controller)
   );
 
   return router;

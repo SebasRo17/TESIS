@@ -1,4 +1,4 @@
-export type MasterySource = "exam" | "response" | "manual" | "orchestrator";
+export type MasterySource = "exam" | "response" | "manual" | "orchestrator" | "lesson";
 
 export interface ActiveTopic {
   id: number;

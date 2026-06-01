@@ -4,6 +4,16 @@ function unwrap(payload) {
 	return payload?.data ?? payload ?? null;
 }
 
+export async function getProgressSummary() {
+	const { data } = await api.get("/me/progress/summary");
+	return unwrap(data);
+}
+
+export async function getCourseTopicsProgress(courseId) {
+	const { data } = await api.get(`/me/courses/${courseId}/topics/progress`);
+	return unwrap(data);
+}
+
 export async function getCourseProgress(courseId) {
 	const { data } = await api.get(`/me/courses/${courseId}/progress`);
 	return unwrap(data);

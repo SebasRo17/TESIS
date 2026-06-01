@@ -42,6 +42,16 @@ function parseMaterialIndex(lastPosition) {
   return match ? Number(match[1]) : null;
 }
 
+function parseMaterialProgress(lastPosition) {
+  const match = String(lastPosition || "").match(/^material:(\d+)(?::(.+))?/i);
+  if (!match) return null;
+
+  return {
+    index: Number(match[1]),
+    modality: match[2] || "",
+  };
+}
+
 function formatMinutes(minutes) {
   if (minutes == null) return null;
   if (minutes < 60) return `${minutes} min`;
@@ -67,9 +77,10 @@ function getDificultadLabel(value) {
   return value ? String(value) : "";
 }
 
-export default function TopicDetail({ topic, onBack, initialLessonId = null }) {
+export default function TopicDetail({ topic, onBack, initialLessonId = null, onProgressUpdated }) {
   const courseId = topic?.courseId;
   const contentViewportRef = useRef(null);
+  const materialStartedAtRef = useRef(null);
 
   const [topicTree, setTopicTree] = useState([]);
   const [loadingTree, setLoadingTree] = useState(false);
@@ -108,6 +119,7 @@ export default function TopicDetail({ topic, onBack, initialLessonId = null }) {
     setSelectedContentIndex(null);
     setMaxUnlockedMaterialIndex(0);
     setCanAdvanceMaterial(false);
+    materialStartedAtRef.current = null;
   }, [topic?.id, initialLessonId]);
 
   useEffect(() => {
@@ -233,6 +245,27 @@ export default function TopicDetail({ topic, onBack, initialLessonId = null }) {
       alive = false;
     };
   }, [selectedLesson?.id]);
+
+  const currentProgressContent = useMemo(() => {
+    const parsed = parseMaterialProgress(lessonProgress?.lastPosition);
+    if (!parsed) return null;
+
+    const byIndex = lessonContent[parsed.index] || null;
+    const byVariant = Array.isArray(lessonProgress?.contentVariants)
+      ? lessonProgress.contentVariants.find((variant, index) => {
+          if (index !== parsed.index) return false;
+          if (!parsed.modality) return true;
+          return String(variant?.modality || "").toLowerCase() === String(parsed.modality).toLowerCase();
+        })
+      : null;
+
+    return {
+      index: parsed.index,
+      modality: parsed.modality,
+      lessonContent: byIndex,
+      contentVariant: byVariant,
+    };
+  }, [lessonContent, lessonProgress?.contentVariants, lessonProgress?.lastPosition]);
 
   useEffect(() => {
     let alive = true;
@@ -421,6 +454,12 @@ export default function TopicDetail({ topic, onBack, initialLessonId = null }) {
       return;
     }
 
+    materialStartedAtRef.current = {
+      lessonId: selectedLesson?.id ?? null,
+      contentIndex,
+      startedAt: Date.now(),
+    };
+
     try {
       setVariantLoading(true);
       setVariantError("");
@@ -466,6 +505,11 @@ export default function TopicDetail({ topic, onBack, initialLessonId = null }) {
     const currentStatus = String(lessonProgress?.status || "").toLowerCase();
     const contentLabel = currentContent?.title || currentContent?.modality || `Material ${selectedContentIndex + 1}`;
     const isLast = selectedContentIndex >= lessonContent.length - 1;
+    const startedAt = materialStartedAtRef.current;
+    const timeSpentSec =
+      startedAt?.lessonId === selectedLesson.id && startedAt?.contentIndex === selectedContentIndex
+        ? Math.max(0, Math.round((Date.now() - startedAt.startedAt) / 1000))
+        : 0;
 
     try {
       setVariantLoading(true);
@@ -474,6 +518,7 @@ export default function TopicDetail({ topic, onBack, initialLessonId = null }) {
       if (currentStatus !== "completed") {
         const updated = await updateLessonProgress(selectedLesson.id, {
           lastPosition: `material:${selectedContentIndex}:${contentLabel}`,
+          timeSpentSec,
         });
 
         if (updated) {
@@ -486,6 +531,7 @@ export default function TopicDetail({ topic, onBack, initialLessonId = null }) {
         if (completed) {
           setLessonProgress(completed);
         }
+        onProgressUpdated?.();
         return;
       }
 
@@ -667,7 +713,9 @@ export default function TopicDetail({ topic, onBack, initialLessonId = null }) {
 
                       <h3 className="mt-4 text-2xl font-black text-slate-900">{lessonDetail?.title || selectedLesson.title}</h3>
                       <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-slate-500">
-                        <span className="rounded-full bg-slate-100 px-3 py-1">Versión: {lessonDetail?.version ?? selectedLesson.version ?? "-"}</span>
+                        <span className="rounded-full bg-slate-100 px-3 py-1">
+                          Estado: {String(lessonProgress?.status || "").toLowerCase() === "completed" ? "Completada" : String(lessonProgress?.status || "").toLowerCase() === "in_progress" ? "En progreso" : "Sin iniciar"}
+                        </span>
                       </div>
                     </div>
 
@@ -691,42 +739,8 @@ export default function TopicDetail({ topic, onBack, initialLessonId = null }) {
                       </section>
                     )}
 
-                    <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <Sparkles size={18} className="text-cyan-600" />
-                        <h4 className="text-lg font-black text-slate-900">Study Rules recomendadas</h4>
-                      </div>
+                    {/* Study Rules removed per design — not shown in TopicDetail */}
 
-                      {loadingStudyRules ? (
-                        <p className="mt-4 inline-flex items-center gap-2 text-sm text-slate-600">
-                          <Clock3 size={15} className="animate-spin" /> Cargando reglas...
-                        </p>
-                      ) : studyRulesError ? (
-                        <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">
-                          {studyRulesError}
-                        </p>
-                      ) : studyRules.length ? (
-                        <div className="mt-4 space-y-3">
-                          {studyRules.slice(0, 5).map((rule) => (
-                            <div key={rule.id || `${rule.scope}-${rule.name}`} className="rounded-2xl border border-cyan-100 bg-cyan-50/50 p-4">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-black text-slate-900">{rule.name || "Regla"}</p>
-                                <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-cyan-700 border border-cyan-200">
-                                  {String(rule.scope || "general").toUpperCase()}
-                                </span>
-                              </div>
-                              {rule.definition?.description ? (
-                                <p className="mt-2 text-sm text-slate-700">{rule.definition.description}</p>
-                              ) : null}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="mt-4 text-sm text-slate-600">
-                          No hay study rules configuradas para este tema.
-                        </p>
-                      )}
-                    </section>
                     <section className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
                       <div className="flex items-center gap-2">
                         <BookOpen size={18} className="text-sky-600" />
@@ -746,10 +760,17 @@ export default function TopicDetail({ topic, onBack, initialLessonId = null }) {
                         {loadingLessonProgress ? (
                           <span className="inline-flex items-center gap-2"><Clock3 size={15} className="animate-spin" /> Cargando progreso de la lección...</span>
                         ) : lessonProgress ? (
-                          <span>
-                            Progreso de la lección:
-                            <strong>{lessonProgress.lastPosition ? ` · ${lessonProgress.lastPosition}` : " 0%"}</strong>
-                          </span>
+                          <div className="space-y-1">
+                            {/* <p>
+                              Progreso de la lección:
+                              <strong>{lessonProgress.lastPosition ? ` · ${lessonProgress.lastPosition}` : " 0%"}</strong>
+                            </p> */}
+                            <p>
+                              {currentProgressContent
+                                ? `Último contenido: ${currentProgressContent.lessonContent?.title || currentProgressContent.contentVariant?.modality || currentProgressContent.modality || `Material ${currentProgressContent.index + 1}`}`
+                                : "Aún no se detecta un contenido específico."}
+                            </p>
+                          </div>
                         ) : (
                           <span>Esta lección todavía no tiene progreso registrado.</span>
                         )}

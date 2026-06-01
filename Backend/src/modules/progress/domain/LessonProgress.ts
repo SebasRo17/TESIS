@@ -24,9 +24,18 @@ export enum ProgressStatus {
 /**
  * Progreso de lección con información extendida
  */
+export interface LessonContentVariant {
+  id: number;
+  modality: string;
+  difficultyProfile: string;
+  estimatedMinutes: number;
+}
+
 export interface LessonProgressDetail extends LessonProgress {
   lessonTitle?: string;
   courseTitle?: string;
+  topicName?: string;
+  contentVariants?: LessonContentVariant[];
 }
 
 /**

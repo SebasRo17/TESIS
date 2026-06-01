@@ -12,11 +12,10 @@ import {
 } from "lucide-react";
 
 import { getCourseTopicsTree, getTopicById } from "../../services/topicsService";
-import { getLessonsByCourse, getLessonsByTopic } from "../../services/lessonsService";
 import {
-  getTopicMastery,
   getTopicMasteryJournal,
 } from "../../services/masteryService";
+import { getCourseTopicsProgress } from "../../services/progressService";
 
 /**
  * Helpers
@@ -44,11 +43,24 @@ function clampPercent(n) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function pseudoProgressFromId(id) {
-  // solo para demo visual si aún no tienes progreso real
-  // quítalo cuando tengas % real por usuario
-  const v = (Number(id || 1) % 10) / 10;
-  return clamp01(v === 0 ? 0.2 : v);
+function getLessonStatusLabel(value) {
+  const key = String(value || "").toLowerCase();
+  if (key === "completed") return "Completada";
+  if (key === "in_progress") return "En progreso";
+  if (key === "not_started") return "Sin iniciar";
+  return value ? String(value) : "Sin estado";
+}
+
+function formatLessonDate(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("es-EC", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function TopicCard({ node, isSelected, onSelect, lessonCount, loadingMastery }) {
@@ -145,6 +157,8 @@ function TopicCard({ node, isSelected, onSelect, lessonCount, loadingMastery }) 
 }
 
 function LessonItem({ lesson, onOpenLesson }) {
+  const status = String(lesson?.status || "not_started").toLowerCase();
+  const title = lesson?.lessonTitle || lesson?.title || "Lección";
   return (
     <button
       onClick={() => onOpenLesson?.(lesson)}
@@ -155,7 +169,26 @@ function LessonItem({ lesson, onOpenLesson }) {
           <PlayCircle size={18} />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-bold text-slate-900 truncate">{lesson.title}</p>
+          <p className="font-bold text-slate-900 truncate">{title}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span
+              className={[
+                "rounded-full px-2 py-0.5 text-[11px] font-black",
+                status === "completed"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : status === "in_progress"
+                    ? "bg-cyan-100 text-cyan-700"
+                    : "bg-slate-100 text-slate-600",
+              ].join(" ")}
+            >
+              {getLessonStatusLabel(status)}
+            </span>
+            {lesson.completedAt ? (
+              <span className="text-[11px] text-slate-500">
+                {formatLessonDate(lesson.completedAt)}
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
     </button>
@@ -268,7 +301,7 @@ function ProgressJournalChart({ items }) {
   );
 }
 
-export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
+export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson, refreshToken = 0 }) {
   const [tree, setTree] = useState([]);
   const [loadingTree, setLoadingTree] = useState(true);
 
@@ -277,36 +310,37 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState(null);
 
-  // lecciones
-  const [courseLessons, setCourseLessons] = useState([]);
-  const [loadingCourseLessons, setLoadingCourseLessons] = useState(false);
-
-  const [topicLessons, setTopicLessons] = useState([]);
-  const [loadingTopicLessons, setLoadingTopicLessons] = useState(false);
-  const [topicMasteryMap, setTopicMasteryMap] = useState({});
-  const [loadingMastery, setLoadingMastery] = useState(true);
+  // progreso por topic
+  const [topicProgressMap, setTopicProgressMap] = useState({});
+  const [loadingProgress, setLoadingProgress] = useState(false);
 
   const [masteryJournal, setMasteryJournal] = useState([]);
   const [loadingJournal, setLoadingJournal] = useState(false);
   const [journalError, setJournalError] = useState("");
 
-  // 1) cargar arbol + lecciones del curso (para contar por tema)
+  // 1) cargar arbol de temas y progreso agregado del curso
   useEffect(() => {
     let alive = true;
 
     async function loadAll() {
       setLoadingTree(true);
-      setLoadingCourseLessons(true);
+      setLoadingProgress(true);
 
       try {
-        const [t, lessons] = await Promise.all([
+        const [t, progress] = await Promise.all([
           getCourseTopicsTree(courseId),
-          getLessonsByCourse(courseId),
+          getCourseTopicsProgress(courseId),
         ]);
 
         if (!alive) return;
         setTree(t || []);
-        setCourseLessons(lessons || []);
+        const topicEntries = Array.isArray(progress?.topics) ? progress.topics : [];
+        const nextProgressMap = {};
+        for (const topic of topicEntries) {
+          if (topic?.topicId == null) continue;
+          nextProgressMap[topic.topicId] = topic;
+        }
+        setTopicProgressMap(nextProgressMap);
 
         // selecciona el primer nodo visible
         const first = flattenTree(t)?.[0];
@@ -314,121 +348,62 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
       } catch (e) {
         if (!alive) return;
         setTree([]);
-        setCourseLessons([]);
+        setTopicProgressMap({});
       } finally {
         if (!alive) return;
         setLoadingTree(false);
-        setLoadingCourseLessons(false);
+        setLoadingProgress(false);
       }
     }
 
     if (Number.isFinite(courseId) && courseId > 0) loadAll();
     else {
       setLoadingTree(false);
-      setLoadingCourseLessons(false);
+      setLoadingProgress(false);
     }
 
     return () => {
       alive = false;
     };
-  }, [courseId]);
+  }, [courseId, refreshToken]);
 
-  // 2) cargar detalle del tema + lecciones por tema
+  // 2) cargar detalle del tema seleccionado
   useEffect(() => {
     let alive = true;
 
-    async function loadDetailAndLessons() {
+    async function loadDetail() {
       if (!selectedId) {
         setDetail(null);
-        setTopicLessons([]);
         return;
       }
 
       setDetailLoading(true);
-      setLoadingTopicLessons(true);
 
       try {
-        const [d, lessons] = await Promise.all([
-          getTopicById(selectedId),
-          getLessonsByTopic(selectedId),
-        ]);
+        const d = await getTopicById(selectedId);
 
         if (!alive) return;
         setDetail(d || null);
-        setTopicLessons(lessons || []);
       } catch (e) {
         if (!alive) return;
         setDetail(null);
-        setTopicLessons([]);
       } finally {
         if (!alive) return;
         setDetailLoading(false);
-        setLoadingTopicLessons(false);
       }
     }
 
-    loadDetailAndLessons();
+    loadDetail();
     return () => {
       alive = false;
     };
-  }, [selectedId]);
-
-  // conteo de lecciones por primaryTopicId
-  const lessonsCountMap = useMemo(() => {
-    const map = {};
-    for (const l of courseLessons || []) {
-      const k = l.primaryTopicId;
-      if (!k) continue;
-      map[k] = (map[k] || 0) + 1;
-    }
-    return map;
-  }, [courseLessons]);
+  }, [selectedId, refreshToken]);
 
   const flatTopics = useMemo(() => flattenTree(tree), [tree]);
 
-  useEffect(() => {
-    let alive = true;
-
-    async function loadMasteryByTopic() {
-      if (!flatTopics.length) {
-        setTopicMasteryMap({});
-        setLoadingMastery(false);
-        return;
-      }
-
-      try {
-        setLoadingMastery(true);
-        const results = await Promise.allSettled(
-          flatTopics.map((topic) => getTopicMastery(topic.id))
-        );
-
-        if (!alive) return;
-
-        const nextMap = {};
-        results.forEach((result, index) => {
-          const topicId = flatTopics[index]?.id;
-          if (!topicId) return;
-          if (result.status === "fulfilled") {
-            nextMap[topicId] = clampPercent(result.value?.masteryPercent ?? Number(result.value?.mastery) * 100);
-          }
-        });
-
-        setTopicMasteryMap(nextMap);
-      } catch {
-        if (!alive) return;
-        setTopicMasteryMap({});
-      } finally {
-        if (!alive) return;
-        setLoadingMastery(false);
-      }
-    }
-
-    loadMasteryByTopic();
-
-    return () => {
-      alive = false;
-    };
-  }, [flatTopics]);
+  const selectedTopicProgress = useMemo(() => {
+    return topicProgressMap[selectedId] || null;
+  }, [selectedId, topicProgressMap]);
 
   useEffect(() => {
     let alive = true;
@@ -487,20 +462,20 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                 </div>
               </div>
 
-              {(loadingTree || loadingCourseLessons) ? (
+              {(loadingTree || loadingProgress) ? (
                 <span className="text-xs font-semibold text-slate-600 inline-flex items-center gap-2">
                   <Loader2 className="animate-spin" size={14} /> Cargando
                 </span>
               ) : (
                 <span className="text-xs font-bold text-slate-700">
-                  {loadingMastery ? "Calculando dominio..." : `${flatTopics.length} temas`}
+                  {loadingProgress ? "Calculando dominio..." : `${flatTopics.length} temas`}
                 </span>
               )}
             </div>
           </div>
 
           <div className="p-5 space-y-3">
-            {(loadingTree || loadingCourseLessons) ? (
+            {(loadingTree || loadingProgress) ? (
               <div className="py-10 text-center text-slate-500 text-sm">
                 Cargando temas...
               </div>
@@ -515,14 +490,14 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                   node={{
                     ...t,
                     progress:
-                      topicMasteryMap[t.id] != null
-                        ? topicMasteryMap[t.id] / 100
+                      topicProgressMap[t.id]?.completionPercentage != null
+                        ? topicProgressMap[t.id].completionPercentage / 100
                         : 0,
                   }}
                   isSelected={selectedId === t.id}
                   onSelect={setSelectedId}
-                  lessonCount={lessonsCountMap[t.id] || 0}
-                  loadingMastery={loadingMastery}
+                  lessonCount={topicProgressMap[t.id]?.totalLessons || 0}
+                  loadingMastery={loadingProgress}
                 />
               ))
             )}
@@ -549,6 +524,18 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                 <p className="mt-1 text-slate-700">
                   {detail?.description || "Selecciona un tema para ver detalles, subtemas y lecciones."}
                 </p>
+
+                <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold">
+                  <span className="rounded-full bg-white/90 px-3 py-1 text-slate-700 shadow-sm">
+                    Progreso: {selectedTopicProgress?.completionPercentage ?? 0}%
+                  </span>
+                  {/* <span className="rounded-full bg-white/90 px-3 py-1 text-slate-700 shadow-sm">
+                    Mastery: {Math.round((selectedTopicProgress?.mastery ?? 0) * 100)}%
+                  </span> */}
+                  <span className="rounded-full bg-white/90 px-3 py-1 text-slate-700 shadow-sm">
+                    Lecciones: {selectedTopicProgress?.completedLessons ?? 0}/{selectedTopicProgress?.totalLessons ?? 0}
+                  </span>
+                </div>
               </div>
 
               <button
@@ -609,7 +596,7 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                   )}
                 </div>
 
-                {/* Lecciones (endpoint real) */}
+                {/* Lecciones (endpoint agregado por topic) */}
                 <div>
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
@@ -617,23 +604,23 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                       <h4 className="text-sm font-black text-slate-900">Lecciones</h4>
                     </div>
 
-                    {loadingTopicLessons ? (
+                    {loadingProgress ? (
                       <span className="text-xs font-semibold text-slate-500 inline-flex items-center gap-2">
                         <Loader2 className="animate-spin" size={14} /> Cargando
                       </span>
                     ) : (
                       <span className="text-xs font-bold text-slate-600">
-                        {topicLessons.length} lecciones
+                        {selectedTopicProgress?.totalLessons || 0} lecciones
                       </span>
                     )}
                   </div>
 
-                  {loadingTopicLessons ? (
+                  {loadingProgress ? (
                     <div className="mt-3 text-sm text-slate-500">Cargando lecciones...</div>
-                  ) : topicLessons.length ? (
+                  ) : (selectedTopicProgress?.lessons || []).length ? (
                     <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {topicLessons.map((l) => (
-                        <LessonItem key={l.id} lesson={l} onOpenLesson={onOpenLesson} />
+                      {(selectedTopicProgress?.lessons || []).map((l) => (
+                        <LessonItem key={l.lessonId ?? l.id ?? l.lessonTitle} lesson={l} onOpenLesson={onOpenLesson} />
                       ))}
                     </div>
                   ) : (
@@ -644,7 +631,7 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                 </div>
 
                 {/* Historial de mastery */}
-                <div>
+                {/* <div>
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
                       <LineChart size={18} className="text-cyan-700" />
@@ -652,7 +639,7 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                     </div>
 
                     <span className="text-xs font-bold text-slate-600">
-                      Dominio actual: {topicMasteryMap[selectedId] ?? 0}%
+                      Dominio actual: {Math.round((selectedTopicProgress?.mastery ?? 0) * 100)}%
                     </span>
                   </div>
 
@@ -667,7 +654,7 @@ export default function SubjectTopics({ courseId, onOpenTopic, onOpenLesson }) {
                   ) : (
                     <ProgressJournalChart items={masteryJournal} />
                   )}
-                </div>
+                </div> */}
               </div>
             )}
           </div>

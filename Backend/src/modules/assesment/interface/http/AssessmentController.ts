@@ -5,6 +5,7 @@ import type { StartExamAttemptUseCase } from '../../application/StartExamAttempt
 import type { SubmitItemResponseUseCase } from '../../application/SubmitItemResponseUseCase';
 import type { FinishExamAttemptUseCase } from '../../application/FinishExamAttemptUseCase';
 import type { GetExamAttemptDetailUseCase } from '../../application/GetExamAttemptDetailUseCase';
+import type { GetExamAttemptReviewUseCase } from '../../application/GetExamAttemptReviewUseCase';
 import type {
   GetExamsByCourseParams,
   GetExamItemsParams,
@@ -31,7 +32,8 @@ export class AssessmentController {
     private readonly startExamAttemptUseCase: StartExamAttemptUseCase,
     private readonly submitItemResponseUseCase: SubmitItemResponseUseCase,
     private readonly finishExamAttemptUseCase: FinishExamAttemptUseCase,
-    private readonly getExamAttemptDetailUseCase: GetExamAttemptDetailUseCase
+    private readonly getExamAttemptDetailUseCase: GetExamAttemptDetailUseCase,
+    private readonly getExamAttemptReviewUseCase: GetExamAttemptReviewUseCase
   ) {}
 
   /**
@@ -166,6 +168,26 @@ export class AssessmentController {
       res.status(200).json({
         success: true,
         data: response,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /exam-attempts/:attemptId/review
+   * Obtener revision completa de un intento con preguntas, opciones y explicaciones
+   */
+  async getExamAttemptReview(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { attemptId } = req.params as unknown as GetExamAttemptDetailParams;
+      const userId = (req as any).user.id;
+
+      const review = await this.getExamAttemptReviewUseCase.execute(attemptId, userId);
+
+      res.status(200).json({
+        success: true,
+        data: review,
       });
     } catch (error) {
       next(error);

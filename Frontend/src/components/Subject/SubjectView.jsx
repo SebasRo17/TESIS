@@ -24,6 +24,7 @@ export default function SubjectView({ onBack }) {
   const [mode, setMode] = useState("tabs"); // "tabs" | "topic"
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [initialLessonId, setInitialLessonId] = useState(null);
+  const [progressRefreshToken, setProgressRefreshToken] = useState(0);
 
   const tabs = [
     { id: "resumen", label: "Resumen", icon: LineChart },
@@ -73,6 +74,10 @@ export default function SubjectView({ onBack }) {
     setMode("tabs");
     setSelectedTopic(null);
     setInitialLessonId(null);
+  };
+
+  const handleProgressUpdated = () => {
+    setProgressRefreshToken((current) => current + 1);
   };
 
   useEffect(() => {
@@ -133,7 +138,14 @@ export default function SubjectView({ onBack }) {
   }, [location.search, slug]);
 
   if (mode === "topic" && selectedTopic) {
-    return <TopicDetail topic={selectedTopic} onBack={handleBackFromTopic} initialLessonId={initialLessonId} />;
+    return (
+      <TopicDetail
+        topic={selectedTopic}
+        onBack={handleBackFromTopic}
+        initialLessonId={initialLessonId}
+        onProgressUpdated={handleProgressUpdated}
+      />
+    );
   }
 
   return (
@@ -199,6 +211,7 @@ export default function SubjectView({ onBack }) {
           {activeTab === "resumen" && (
             <SubjectOverview
               courseId={course?.id}
+              refreshToken={progressRefreshToken}
               subject={{
                 name: course?.title ?? "Curso",
                 description: course?.description ?? "",
@@ -207,11 +220,20 @@ export default function SubjectView({ onBack }) {
           )}
 
           {activeTab === "temas" && (
-            <SubjectTopics courseId={course?.id} onOpenTopic={handleOpenTopic} />
+            <SubjectTopics
+              courseId={course?.id}
+              onOpenTopic={handleOpenTopic}
+              refreshToken={progressRefreshToken}
+            />
           )}
 
           {activeTab === "simulador" && (
-            <SubjectSimulator course={course} slug={slug} variant="preview" />
+            <SubjectSimulator
+              course={course}
+              slug={slug}
+              variant="preview"
+              onProgressUpdated={handleProgressUpdated}
+            />
           )}
         </div>
       </div>

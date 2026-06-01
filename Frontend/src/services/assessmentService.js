@@ -35,3 +35,9 @@ export async function getExamAttemptDetail(attemptId) {
 	const { data } = await api.get(`/exam-attempts/${attemptId}`);
 	return data?.data ?? null;
 }
+
+// GET /exam-attempts/{attemptId}/review
+export async function getExamAttemptReview(attemptId) {
+	const { data } = await api.get(`/exam-attempts/${attemptId}/review`);
+	return data?.data ?? null;
+}

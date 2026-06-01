@@ -26,6 +26,11 @@ import { StartExamAttemptUseCase } from '../../application/StartExamAttemptUseCa
 import { SubmitItemResponseUseCase } from '../../application/SubmitItemResponseUseCase';
 import { FinishExamAttemptUseCase } from '../../application/FinishExamAttemptUseCase';
 import { GetExamAttemptDetailUseCase } from '../../application/GetExamAttemptDetailUseCase';
+import { GetExamAttemptReviewUseCase } from '../../application/GetExamAttemptReviewUseCase';
+
+// Import mastery
+import { PrismaMasteryRepository } from '../../../mastery/infrastructure/PrismaMasteryRepository';
+import { UpdateMasteryUseCase } from '../../../mastery/application/UpdateMasteryUseCase';
 
 // Import Prisma client
 import { prisma } from '../../../../infra/db/prisma';
@@ -40,6 +45,8 @@ export const createAssessmentRouter = (): Router => {
   const itemRepository = new PrismaItemRepository(prisma);
   const examAttemptRepository = new PrismaExamAttemptRepository(prisma);
   const itemResponseRepository = new PrismaItemResponseRepository(prisma);
+  const masteryRepository = new PrismaMasteryRepository(prisma);
+  const updateMasteryUseCase = new UpdateMasteryUseCase(masteryRepository);
 
   // Inicializar casos de uso
   const getExamsByCourseUseCase = new GetExamsByCourseUseCase(examRepository);
@@ -57,9 +64,12 @@ export const createAssessmentRouter = (): Router => {
   const finishExamAttemptUseCase = new FinishExamAttemptUseCase(
     examAttemptRepository,
     itemResponseRepository,
-    examRepository
+    examRepository,
+    itemRepository,
+    updateMasteryUseCase
   );
   const getExamAttemptDetailUseCase = new GetExamAttemptDetailUseCase(examAttemptRepository);
+  const getExamAttemptReviewUseCase = new GetExamAttemptReviewUseCase(examAttemptRepository, itemRepository);
 
   // Inicializar controlador
   const controller = new AssessmentController(
@@ -68,7 +78,8 @@ export const createAssessmentRouter = (): Router => {
     startExamAttemptUseCase,
     submitItemResponseUseCase,
     finishExamAttemptUseCase,
-    getExamAttemptDetailUseCase
+    getExamAttemptDetailUseCase,
+    getExamAttemptReviewUseCase
   );
 
   // Rutas
@@ -115,6 +126,13 @@ export const createAssessmentRouter = (): Router => {
     authMiddleware,
     validateRequest({ params: GetExamAttemptDetailParamsSchema }),
     controller.getExamAttemptDetail.bind(controller)
+  );
+
+  router.get(
+    '/exam-attempts/:attemptId/review',
+    authMiddleware,
+    validateRequest({ params: GetExamAttemptDetailParamsSchema }),
+    controller.getExamAttemptReview.bind(controller)
   );
 
   return router;

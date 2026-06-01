@@ -5,6 +5,7 @@ import type {
 } from '../../../domain/LessonProgress';
 import type { CourseProgress } from '../../../domain/CourseProgress';
 import type { RecentActivity, LessonActivity, ExamActivity } from '../../../domain/RecentActivity';
+import type { UserProgressSummary, CourseProgressSummaryItem } from '../../../domain/UserProgressSummary';
 
 /**
  * DTOs para Progress
@@ -36,9 +37,18 @@ export interface LessonProgressDTO {
   timeSpentSec: number | null;
 }
 
+export interface LessonContentVariantDTO {
+  id: number;
+  modality: string;
+  difficultyProfile: string;
+  estimatedMinutes: number;
+}
+
 export interface LessonProgressDetailDTO extends LessonProgressDTO {
   lessonTitle?: string;
   courseTitle?: string;
+  topicName?: string;
+  contentVariants?: LessonContentVariantDTO[];
 }
 
 export interface CourseProgressDTO {
@@ -75,6 +85,29 @@ export interface RecentActivityDTO {
   lastActivityDate: string | null;
 }
 
+export interface CourseProgressSummaryItemDTO {
+  courseId: number;
+  courseTitle: string;
+  courseCode: string;
+  totalLessons: number;
+  completedLessons: number;
+  inProgressLessons: number;
+  totalTimeSpentSec: number;
+  completionPercentage: number;
+  lastActivityAt: string | null;
+}
+
+export interface UserProgressSummaryDTO {
+  userId: number;
+  totalCourses: number;
+  totalCompletedLessons: number;
+  totalInProgressLessons: number;
+  totalTimeSpentSec: number;
+  overallCompletionPercentage: number;
+  courses: CourseProgressSummaryItemDTO[];
+  recentActivity: RecentActivityDTO;
+}
+
 /**
  * Mappers
  */
@@ -98,6 +131,8 @@ export function toLessonProgressDetailDTO(
     ...base,
     ...(progress.lessonTitle !== undefined && { lessonTitle: progress.lessonTitle }),
     ...(progress.courseTitle !== undefined && { courseTitle: progress.courseTitle }),
+    ...(progress.topicName !== undefined && { topicName: progress.topicName }),
+    ...(progress.contentVariants !== undefined && { contentVariants: progress.contentVariants }),
   };
 }
 
@@ -146,5 +181,30 @@ function toExamActivityDTO(activity: ExamActivity): ExamActivityDTO {
     attemptId: activity.attemptId,
     completedAt: activity.completedAt ? activity.completedAt.toISOString() : null,
     lastInteraction: activity.lastInteraction.toISOString(),
+  };
+}
+
+export function toUserProgressSummaryDTO(
+  summary: UserProgressSummary
+): UserProgressSummaryDTO {
+  return {
+    userId: summary.userId,
+    totalCourses: summary.totalCourses,
+    totalCompletedLessons: summary.totalCompletedLessons,
+    totalInProgressLessons: summary.totalInProgressLessons,
+    totalTimeSpentSec: summary.totalTimeSpentSec,
+    overallCompletionPercentage: summary.overallCompletionPercentage,
+    courses: summary.courses.map((c) => ({
+      courseId: c.courseId,
+      courseTitle: c.courseTitle,
+      courseCode: c.courseCode,
+      totalLessons: c.totalLessons,
+      completedLessons: c.completedLessons,
+      inProgressLessons: c.inProgressLessons,
+      totalTimeSpentSec: c.totalTimeSpentSec,
+      completionPercentage: c.completionPercentage,
+      lastActivityAt: c.lastActivityAt ? c.lastActivityAt.toISOString() : null,
+    })),
+    recentActivity: toRecentActivityDTO(summary.recentActivity),
   };
 }

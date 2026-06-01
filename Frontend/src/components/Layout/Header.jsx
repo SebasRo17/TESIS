@@ -42,8 +42,8 @@ export default function Header() {
       <div className="mx-auto flex h-16 w-full max-w-7.5xl items-center justify-between px-4">
         {/* Left: brand */}
         <div className="flex items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-2xl bg-cyan-50 text-cyan-700 font-extrabold">
-            E
+          <div className="h-10 w-10 overflow-hidden rounded-2xl bg-white/0">
+            <img src="/Icono_EduPrep.jpeg" alt="EduPrep" className="h-10 w-10 object-cover rounded-2xl" />
           </div>
 
           <Link to="/app/dashboard" className="flex flex-col leading-tight">

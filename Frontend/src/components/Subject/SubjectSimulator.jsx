@@ -16,7 +16,7 @@ import {
 import {
   finishExamAttempt,
   getCourseExams,
-  getExamAttemptDetail,
+  getExamAttemptReview,
   getExamItems,
   submitExamAttemptResponse,
   startExamAttempt,
@@ -126,7 +126,7 @@ function isDurationGeneratedColumnError(error) {
   return message.includes("duration_sec") && message.includes("generated column");
 }
 
-export default function SubjectSimulator({ course, slug, variant = "preview", onClose }) {
+export default function SubjectSimulator({ course, slug, variant = "preview", onClose, onProgressUpdated }) {
   const [started, setStarted] = useState(false);
   const [finished, setFinished] = useState(false);
   const [timeLeft, setTimeLeft] = useState(10 * 60);
@@ -211,9 +211,8 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
   const currentItem = useMemo(() => questions[currentIndex] ?? null, [questions, currentIndex]);
   const currentItemIsMultiChoice = useMemo(() => isMultiChoiceItem(currentItem), [currentItem]);
 
-  const attemptResponsesByItemId = useMemo(() => {
-    const entries = Array.isArray(attemptDetail?.responses) ? attemptDetail.responses : [];
-    return new Map(entries.map((response) => [response.itemId, response]));
+  const reviewResponses = useMemo(() => {
+    return Array.isArray(attemptDetail?.responses) ? attemptDetail.responses : [];
   }, [attemptDetail?.responses]);
 
   const progressPercent = useMemo(() => {
@@ -288,11 +287,6 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
       );
       setTimeLeft(seconds);
 
-      if (createdAttempt?.id) {
-        const detail = await getExamAttemptDetail(createdAttempt.id);
-        setAttemptDetail(detail);
-      }
-
       setStarted(true);
     } catch (error) {
       const msg =
@@ -313,17 +307,18 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
       setActionError("");
 
       const finishedAttempt = await finishExamAttempt(attempt.id);
-      const detail = await getExamAttemptDetail(attempt.id);
+      const detail = await getExamAttemptReview(attempt.id);
 
       setAttempt(finishedAttempt || attempt);
       setAttemptDetail(detail || finishedAttempt || attempt);
       setStarted(false);
       setFinished(true);
+      onProgressUpdated?.();
     } catch (error) {
       if (isDurationGeneratedColumnError(error)) {
         let detail = null;
         try {
-          detail = await getExamAttemptDetail(attempt.id);
+          detail = await getExamAttemptReview(attempt.id);
         } catch {
           detail = null;
         }
@@ -340,6 +335,7 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
         setStarted(false);
         setFinished(true);
         setActionError("");
+        onProgressUpdated?.();
         return;
       }
 
@@ -651,7 +647,7 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
                       Puntaje: {attemptDetail?.scoreNorm ?? attempt?.scoreNorm ?? 0}%
                     </p>
                     <p className="mt-2 text-sm text-emerald-800">
-                      Correctas: {attemptDetail?.metadata?.correctAnswers ?? 0} de {attemptDetail?.metadata?.totalItems ?? totalQuestions}
+                      Correctas: {attemptDetail?.correctAnswers ?? attemptDetail?.metadata?.correctAnswers ?? 0} de {attemptDetail?.metadata?.totalItems ?? totalQuestions}
                     </p>
                     <p className="mt-1 text-sm text-emerald-800">
                       Puedes cerrar esta ventana para volver al curso.
@@ -672,36 +668,52 @@ export default function SubjectSimulator({ course, slug, variant = "preview", on
                       </div>
 
                       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                        <Stat value={attemptDetail?.metadata?.answeredItems ?? attemptDetail?.responses?.length ?? 0} label="Respondidas" tone="border-sky-100 bg-sky-50/70" />
-                        <Stat value={attemptDetail?.metadata?.correctAnswers ?? 0} label="Correctas" tone="border-emerald-100 bg-emerald-50/70" />
-                        <Stat value={attemptDetail?.metadata?.accuracy != null ? `${Math.round(Number(attemptDetail.metadata.accuracy) * 100)}%` : "-"} label="Precisión" tone="border-cyan-100 bg-cyan-50/70" />
+                        <Stat value={attemptDetail?.metadata?.answeredItems ?? reviewResponses.length ?? 0} label="Respondidas" tone="border-sky-100 bg-sky-50/70" />
+                        <Stat value={attemptDetail?.correctAnswers ?? attemptDetail?.metadata?.correctAnswers ?? 0} label="Correctas" tone="border-emerald-100 bg-emerald-50/70" />
+                        <Stat value={attemptDetail?.accuracy != null ? `${Math.round(Number(attemptDetail.accuracy) * 100)}%` : attemptDetail?.metadata?.accuracy != null ? `${Math.round(Number(attemptDetail.metadata.accuracy) * 100)}%` : "-"} label="Precisión" tone="border-cyan-100 bg-cyan-50/70" />
                       </div>
 
                       <div className="mt-5 space-y-3">
-                        {questions.map((item, index) => {
-                          const response = attemptResponsesByItemId.get(item.id) || null;
-                          const options = Array.isArray(item.options) ? item.options : [];
+                        {reviewResponses.map((response, index) => {
+                          const options = Array.isArray(response.options) ? response.options : [];
+                          const isMulti = options.length > 0;
                           return (
-                            <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                            <div key={response.itemId || index} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
                               <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
                                   <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
-                                    Pregunta {index + 1} · {isMultiChoiceItem(item) ? "Selección múltiple" : "Selección única"}
+                                    Pregunta {index + 1} · {response.topicId ? `Tema ${response.topicId}` : "Revisión"}
                                   </p>
-                                  <p className="mt-1 text-sm font-bold text-slate-900">{item.stem}</p>
+                                  <p className="mt-1 text-sm font-bold text-slate-900">{response.stem}</p>
+                                  <div className="mt-1">
+                                    <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-700">
+                                      {isMulti ? "Opción múltiple" : "Respuesta abierta"}
+                                    </span>
+                                  </div>
                                 </div>
                                 <span className={response?.isCorrect ? "rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1 text-[11px] font-black text-emerald-700" : "rounded-full border border-rose-200 bg-rose-100 px-3 py-1 text-[11px] font-black text-rose-700"}>
                                   {response ? (response.isCorrect ? "Correcta" : "Incorrecta") : "Sin respuesta"}
                                 </span>
                               </div>
-                              <p className="mt-3 text-sm text-slate-700">
-                                Tu respuesta: {response ? formatAnswerLabels(response.answer, options) : "Sin respuesta"}
-                              </p>
-                              {response ? (
-                                <p className="mt-1 text-xs text-slate-500">
-                                  Puntaje otorgado: {response.awardedScore ?? 0}
-                                </p>
+                              <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                                <div>
+                                  <p className="font-semibold">Tu respuesta</p>
+                                  <p>{response ? formatAnswerLabels(response.studentAnswer, options) : "Sin respuesta"}</p>
+                                </div>
+                                <div>
+                                  <p className="font-semibold">Respuesta correcta</p>
+                                  <p>{response ? formatAnswerLabels(response.correctAnswer, options) : "-"}</p>
+                                </div>
+                              </div>
+                              {response?.explanation ? (
+                                <div className="mt-3 rounded-2xl border border-cyan-100 bg-cyan-50 px-3 py-2 text-sm text-slate-700">
+                                  <p className="font-semibold">Explicación</p>
+                                  <p className="mt-1">{response.explanation}</p>
+                                </div>
                               ) : null}
+                              <p className="mt-2 text-xs text-slate-500">
+                                Puntaje otorgado: {response.awardedScore ?? 0}
+                              </p>
                             </div>
                           );
                         })}

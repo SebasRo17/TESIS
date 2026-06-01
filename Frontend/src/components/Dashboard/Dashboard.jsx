@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
@@ -10,7 +10,6 @@ import {
   Target,
   TrendingUp,
   Award,
-  CalendarDays,
   CheckCircle2,
   X,
   ChevronLeft,
@@ -24,13 +23,61 @@ import {
 import { EduBot3DWithMode } from "../Tutorial/EduBot3D";
 import { getCoursesRequest } from "../../services/coursesService";
 import { getCourseMastery } from "../../services/masteryService";
-import { getCourseProgress, getRecentProgress } from "../../services/progressService";
+import { getCourseProgress, getRecentProgress, getProgressSummary } from "../../services/progressService";
 import {
   getActiveStudyPlan,
   getNextStudyPlanActivity,
   getStudyPlanHistory,
   updateStudyPlanItemStatus,
 } from "../../services/studyPlansService";
+
+const TOUR_KEY = "eduprep-dashboard-tour:v3";
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getRectById(anchorId) {
+  const el = document.getElementById(anchorId);
+  if (!el) return null;
+
+  const rect = el.getBoundingClientRect();
+  return {
+    top: rect.top,
+    left: rect.left,
+    width: rect.width,
+    height: rect.height,
+  };
+}
+
+function useAnchorRect(anchorId, deps = []) {
+  const [rect, setRect] = useState(null);
+
+  useLayoutEffect(() => {
+    if (!anchorId) return undefined;
+
+    const updateRect = () => setRect(getRectById(anchorId));
+    updateRect();
+
+    const element = document.getElementById(anchorId);
+    if (!element) return undefined;
+
+    const resizeObserver = new ResizeObserver(updateRect);
+    resizeObserver.observe(element);
+
+    window.addEventListener("scroll", updateRect, { passive: true });
+    window.addEventListener("resize", updateRect);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("scroll", updateRect);
+      window.removeEventListener("resize", updateRect);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+
+  return rect;
+}
 
 function toSafeNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -161,14 +208,207 @@ function TipCard({ Icon, title, text, accent }) {
   );
 }
 
+function DashboardTour({ open, stepIndex, steps, anchorId, onClose, onNext, onPrev }) {
+  const rect = useAnchorRect(anchorId, [open, stepIndex, anchorId]);
+  const step = steps[stepIndex] || steps[0];
+
+  useEffect(() => {
+    if (!open) return;
+
+    const element = anchorId ? document.getElementById(anchorId) : null;
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [open, stepIndex, anchorId]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow || "";
+    };
+  }, [open]);
+
+  if (!open || !step) return null;
+
+  const pad = 10;
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const spotlight = rect
+    ? {
+        top: rect.top - pad,
+        left: rect.left - pad,
+        width: rect.width + pad * 2,
+        height: rect.height + pad * 2,
+      }
+    : { top: 96, left: 24, width: 360, height: 140 };
+
+  const bubbleWidth = viewportWidth < 768 ? viewportWidth - 24 : 720;
+  const bubbleHeight = viewportWidth < 768 ? 300 : 340;
+
+  const bubbleLeft = clamp(
+    spotlight.left + spotlight.width / 2 - bubbleWidth / 2,
+    12,
+    viewportWidth - bubbleWidth - 12
+  );
+
+  const bubbleTop = clamp(
+    spotlight.top + spotlight.height + 16,
+    12,
+    viewportHeight - bubbleHeight - 12
+  );
+
+  const robotSize = viewportWidth < 768 ? 120 : 200;
+  const robotDirection = stepIndex % 2 === 0 ? "right" : "left";
+  let robotLeft = clamp(spotlight.left + spotlight.width - robotSize * 0.2, 12, viewportWidth - robotSize - 12);
+  let robotTop = clamp(spotlight.top - robotSize - 18, 12, viewportHeight - robotSize - 12);
+
+  // Adjust robot position per step as requested by UX
+  if (rect) {
+    if (stepIndex === 0) {
+      // step 1: robot to the LEFT of KPI box
+      robotLeft = clamp(spotlight.left - robotSize - 12, 150, viewportWidth - robotSize - 12);
+      robotTop = clamp(spotlight.top + spotlight.height / 2 - robotSize / 2 + 202, 12, viewportHeight - robotSize - 12);
+    } else if (stepIndex === 1) {
+      // step 2: robot to the RIGHT of roadmap box
+      // move the robot closer to the box (more to the left)
+      robotLeft = clamp(spotlight.left + spotlight.width - robotSize - 120, 12, viewportWidth - robotSize - 12);
+      robotTop = clamp(spotlight.top + spotlight.height / 2 - robotSize / 2 + 250, 12, viewportHeight - robotSize - 12);
+    } else if (stepIndex === 2) {
+      // step 3: left of subjects box
+      robotLeft = clamp(spotlight.left - robotSize - 12, 152, viewportWidth - robotSize - 12);
+      robotTop = clamp(spotlight.top + spotlight.height / 2 - robotSize / 2 + 252, 12, viewportHeight - robotSize - 12);
+    } else if (stepIndex === 3) {
+      // step 4: centered below tips box
+      robotLeft = clamp(spotlight.left + spotlight.width / 2 - robotSize / 2, 12, viewportWidth - robotSize - 12);
+      robotTop = clamp(spotlight.top + spotlight.height + 24, 12, viewportHeight - robotSize - 12);
+    }
+  }
+
+  const tourBubbleTop = stepIndex === 3
+    ? clamp(spotlight.top - bubbleHeight + 50, 12, viewportHeight - bubbleHeight - 12)
+    : bubbleTop;
+
+  return (
+    <div className="fixed inset-0 z-[70]">
+      <div
+        className="absolute rounded-3xl transition-all duration-300"
+        style={{
+          top: spotlight.top,
+          left: spotlight.left,
+          width: spotlight.width,
+          height: spotlight.height,
+          boxShadow: "0 0 0 9999px rgba(15, 23, 42, 0.45)",
+        }}
+      />
+
+      <div
+        className="absolute rounded-3xl pointer-events-none"
+        style={{
+          top: spotlight.top,
+          left: spotlight.left,
+          width: spotlight.width,
+          height: spotlight.height,
+          boxShadow:
+            "0 0 0 2px rgba(45, 212, 191, 0.65), 0 0 40px rgba(6, 182, 212, 0.25)",
+        }}
+      />
+
+      <div
+        className="absolute pointer-events-none transition-all duration-700 ease-out"
+        style={{
+          top: robotTop,
+          left: robotLeft,
+          width: robotSize,
+          height: robotSize,
+          filter: "drop-shadow(0 16px 24px rgba(2, 132, 199, 0.2))",
+        }}
+      >
+        <EduBot3DWithMode
+          mode="tour"
+          stepIndex={stepIndex}
+          pointDirection={robotDirection}
+          interactive={false}
+        />
+      </div>
+
+      <div className="absolute w-[720px] max-w-[96vw]" style={{ top: tourBubbleTop, left: bubbleLeft }}>
+        <div className="relative overflow-visible rounded-3xl bg-white/92 backdrop-blur-xl border border-white/50 shadow-2xl">
+          <div className="absolute inset-0 pointer-events-none bg-gradient-to-br from-teal-500/10 via-cyan-500/10 to-sky-500/10" />
+
+          <div className="relative p-5 sm:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-teal-600" />
+                {step.title}
+              </p>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="h-9 w-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center"
+                aria-label="Cerrar tutorial"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="mt-2 text-base text-slate-700 leading-relaxed">{step.text}</p>
+
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <p className="text-[11px] font-semibold text-slate-500">
+                Paso {stepIndex + 1} de {steps.length}
+              </p>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onPrev}
+                  disabled={stepIndex === 0}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl bg-slate-100 text-slate-800 text-xs font-extrabold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Atrás
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onNext}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 text-white text-xs font-extrabold shadow-lg shadow-teal-500/25 hover:shadow-xl hover:shadow-teal-500/30 transition"
+                >
+                  {stepIndex === steps.length - 1 ? "¡Entendido!" : "Siguiente"}
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-2xl bg-slate-50 border border-slate-200 px-3 py-2 text-[12px] text-slate-600">
+              Tip: puedes volver a abrir este recorrido con el botón{" "}
+              <span className="font-extrabold text-slate-800">“Revisar tutorial”</span>.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 export default function Dashboard({ onSubjectSelect, onGeneralSimulator, onStudyPlanSelect }) {
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
   const [courses, setCourses] = useState([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [coursesError, setCoursesError] = useState("");
   const [courseDetails, setCourseDetails] = useState({});
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [updatingCourseItemKey, setUpdatingCourseItemKey] = useState("");
+  const [progressSummary, setProgressSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState("");
   const [recentProgress, setRecentProgress] = useState(null);
   const [recentLoading, setRecentLoading] = useState(true);
   const [recentError, setRecentError] = useState("");
@@ -197,6 +437,35 @@ export default function Dashboard({ onSubjectSelect, onGeneralSimulator, onStudy
     };
 
     loadCourses();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+
+    const loadSummary = async () => {
+      try {
+        setSummaryLoading(true);
+        setSummaryError("");
+        const data = await getProgressSummary();
+        if (!alive) return;
+        setProgressSummary(data);
+      } catch (error) {
+        if (!alive) return;
+        setSummaryError(
+          error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          "No se pudo cargar el resumen de progreso."
+        );
+        setProgressSummary(null);
+      } finally {
+        if (alive) setSummaryLoading(false);
+      }
+    };
+
+    loadSummary();
     return () => {
       alive = false;
     };
@@ -288,32 +557,24 @@ export default function Dashboard({ onSubjectSelect, onGeneralSimulator, onStudy
   }, [courses]);
 
   const stats = useMemo(() => {
-    const values = courses.map((course) => {
-      const detail = courseDetails[course.id] || {};
-      const progressPercent = toSafeNumber(
-        detail.progress?.completionPercentage,
-        toSafeNumber(detail.mastery?.masteryPercent, 0)
-      );
-      return progressPercent;
-    });
+    // Uniform keys: prefer summary when available
+    if (progressSummary) {
+      return {
+        coursesWithActivity: progressSummary.totalCourses ?? 0,
+        totalCompletedLessons: progressSummary.totalCompletedLessons ?? 0,
+        totalInProgressLessons: progressSummary.totalInProgressLessons ?? 0,
+        overallCompletion: Math.round(progressSummary.overallCompletionPercentage ?? 0),
+      };
+    }
 
-    const averageProgress = values.length
-      ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
-      : 0;
-
-    const masteredTopics = courses.reduce((sum, course) => {
-      const detail = courseDetails[course.id] || {};
-      const topics = Array.isArray(detail.mastery?.topics) ? detail.mastery.topics : [];
-      return sum + topics.filter((topic) => toSafeNumber(topic.masteryPercent, 0) >= 70).length;
-    }, 0);
-
-    const activePlans = courses.reduce((sum, course) => {
-      const detail = courseDetails[course.id] || {};
-      return detail.plan ? sum + 1 : sum;
-    }, 0);
-
-    return { averageProgress, masteredTopics, activePlans };
-  }, [courses, courseDetails]);
+    // Fallback seguros cuando no hay summary
+    return {
+      coursesWithActivity: courses.length || 0,
+      totalCompletedLessons: 0,
+      totalInProgressLessons: 0,
+      overallCompletion: 0,
+    };
+  }, [progressSummary, courses]);
 
   const courseCards = useMemo(() => {
     return courses.map((course) => {
@@ -337,9 +598,40 @@ export default function Dashboard({ onSubjectSelect, onGeneralSimulator, onStudy
     });
   }, [courses, courseDetails]);
 
+  const tutorialSteps = useMemo(
+    () => [
+      {
+        title: "Resumen de tu progreso",
+        text: "Aquí ves un resumen general: avance promedio, temas dominados, planes activos y tu carga de estudio reciente.",
+        anchorId: "kpi-section",
+      },
+      {
+        title: "Historial de actividades",
+        text: "Esta sección agrupa tus actividades, la siguiente tarea sugerida y el historial de cambios del plan.",
+        anchorId: "roadmap-section",
+      },
+      {
+        title: "Materias de estudio",
+        text: "Desde aquí entras a cada materia. Puedes revisar su progreso y continuar con el contenido correspondiente.",
+        anchorId: "subjects-section",
+      },
+      {
+        title: "Tips y consejos",
+        text: "El robot te acompaña en esta zona con recomendaciones breves para estudiar mejor y usar el simulador.",
+        anchorId: "tips-section",
+      },
+    ],
+    []
+  );
+
   const handleOpenCourse = (course) => {
     const target = course?.code || course?.slug || course?.id;
     if (target) onSubjectSelect?.(target);
+  };
+
+  const handleOpenTutorial = () => {
+    setTourStep(0);
+    setTourOpen(true);
   };
 
   const handleOpenPlanItem = (course, item) => {
@@ -380,6 +672,52 @@ export default function Dashboard({ onSubjectSelect, onGeneralSimulator, onStudy
     }
   };
 
+  useEffect(() => {
+    const seen = localStorage.getItem(TOUR_KEY);
+    if (!seen) {
+      setTourOpen(true);
+      setTourStep(0);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!tourOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow || "";
+    };
+  }, [tourOpen]);
+
+  useEffect(() => {
+    if (!tourOpen) return;
+
+    const anchorId = tutorialSteps[tourStep]?.anchorId;
+    const element = anchorId ? document.getElementById(anchorId) : null;
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [tourOpen, tourStep, tutorialSteps]);
+
+  const closeTour = () => {
+    localStorage.setItem(TOUR_KEY, "1");
+    setTourOpen(false);
+  };
+
+  const nextTour = () => {
+    if (tourStep >= tutorialSteps.length - 1) {
+      closeTour();
+      return;
+    }
+    setTourStep((current) => current + 1);
+  };
+
+  const prevTour = () => {
+    setTourStep((current) => Math.max(0, current - 1));
+  };
+
   return (
     <div className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.16),transparent_32%),radial-gradient(circle_at_top_right,rgba(56,189,248,0.18),transparent_30%),linear-gradient(180deg,#f8fffe_0%,#eefbff_44%,#f8fafc_100%)]">
       <div className="mx-auto max-w-7.5xl px-7 py-8 sm:px-10 lg:py-10">
@@ -399,51 +737,51 @@ export default function Dashboard({ onSubjectSelect, onGeneralSimulator, onStudy
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={onGeneralSimulator}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/85 px-4 py-2.5 text-sm font-bold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              onClick={handleOpenTutorial}
+              className="cursor-pointer inline-flex items-center gap-2 rounded-2xl border border-cyan-200 bg-cyan-50/90 px-4 py-2.5 text-sm font-bold text-cyan-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-cyan-100 hover:shadow-md"
             >
-              <Target className="h-4 w-4" />
-              Simulacro general
+              <Sparkles className="h-4 w-4" />
+              Revisar tutorial
             </button>
           </div>
         </header>
 
-        <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section id="kpi-section" className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
-            title="Progreso promedio"
-            value={`${stats.averageProgress}%`}
-            detail="Promedio general por materia"
-            Icon={TrendingUp}
+            title="Cursos con actividad"
+            value={String(stats.coursesWithActivity ?? 0)}
+            detail="Cursos donde has interactuado"
+            Icon={BookOpen}
             accent="from-teal-500 to-cyan-500"
           />
           <KpiCard
-            title="Temas dominados"
-            value={`${stats.masteredTopics}`}
-            detail="Temas con dominio alto"
-            Icon={BookOpen}
+            title="Lecciones completadas"
+            value={String(stats.totalCompletedLessons ?? 0)}
+            detail="Lecciones finalizadas"
+            Icon={CheckCircle2}
             accent="from-emerald-500 to-lime-500"
           />
           <KpiCard
-            title="Planes activos"
-            value={`${stats.activePlans}`}
-            detail="Cursos con hoja de ruta"
+            title="Lecciones en progreso"
+            value={String(stats.totalInProgressLessons ?? 0)}
+            detail="Lecciones activas"
             Icon={Clock}
             accent="from-orange-500 to-amber-500"
           />
           <KpiCard
-            title="Carga de estudio"
-            value={recentLoading ? "..." : recentProgress ? "Activa" : "Pendiente"}
-            detail="Actividad reciente detectada"
-            Icon={History}
+            title="Progreso global"
+            value={`${String(stats.overallCompletion ?? 0)}%`}
+            detail="Completitud general"
+            Icon={TrendingUp}
             accent="from-violet-500 to-fuchsia-500"
           />
         </section>
 
-        <section className="mt-8 rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-xl sm:p-6">
+        <section id="roadmap-section" className="mt-8 rounded-[2rem] border border-white/70 bg-white/75 p-5 shadow-xl sm:p-6">
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-700">Actividad reciente</p>
-              <h2 className="mt-1 text-lg font-black text-slate-900">Lo último que tocaste</h2>
+              <h2 className="mt-1 text-lg font-black text-slate-900">Lo último que revisaste</h2>
             </div>
             {recentLoading ? <Loader2 className="h-5 w-5 animate-spin text-slate-400" /> : null}
           </div>
@@ -476,11 +814,6 @@ export default function Dashboard({ onSubjectSelect, onGeneralSimulator, onStudy
                 <h3 className="mt-2 text-base font-black text-slate-900">
                   {recentProgress.lastExamActivity?.examTitle || "Sin simulador"}
                 </h3>
-                <p className="mt-1 text-sm text-slate-600">
-                  {recentProgress.lastExamActivity
-                    ? `Intento #${recentProgress.lastExamActivity.attemptId}`
-                    : "Sin datos de intento"}
-                </p>
                 {recentProgress.lastExamActivity ? (
                   <p className="mt-3 text-xs text-slate-500">
                     Última interacción: {formatDate(recentProgress.lastExamActivity.lastInteraction)}
@@ -491,7 +824,7 @@ export default function Dashboard({ onSubjectSelect, onGeneralSimulator, onStudy
           ) : null}
         </section>
 
-        <section className="mt-10">
+        <section id="subjects-section" className="mt-10">
           <div className="flex items-end justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-700">Materias de estudio</p>
@@ -542,7 +875,7 @@ export default function Dashboard({ onSubjectSelect, onGeneralSimulator, onStudy
                         className="flex items-start justify-between gap-4 text-left"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-6">
+                          <div className="flex items-center gap-6 cursor-pointer">
                             <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-cyan-500 to-indigo-500 text-white shadow-md">
                               <BookOpen className="h-6 w-6" />
                             </div>
@@ -652,7 +985,7 @@ export default function Dashboard({ onSubjectSelect, onGeneralSimulator, onStudy
                                                 event.stopPropagation();
                                                 handleOpenPlanItem(course, item);
                                               }}
-                                              className="inline-flex shrink-0 items-center rounded-xl border border-cyan-200 bg-cyan-50 px-2.5 py-1.5 text-xs font-black text-cyan-800 transition hover:bg-cyan-100"
+                                              className="inline-flex shrink-0 items-center rounded-xl border border-cyan-200 bg-cyan-50 px-2.5 py-1.5 text-xs font-black text-cyan-800 transition hover:bg-cyan-100 cursor-pointer"
                                             >
                                               {getPlanItemActionLabel(item)}
                                             </button>
@@ -796,23 +1129,19 @@ export default function Dashboard({ onSubjectSelect, onGeneralSimulator, onStudy
                   accent="from-cyan-500 to-sky-500"
                 />
               </div>
-              {/* 
-              <div className="mt-6">
-                <button
-                  type="button"
-                  onClick={onGeneralSimulator}
-                  className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl bg-white/70 backdrop-blur border border-white/40 shadow-sm hover:shadow-md transition"
-                >
-                  <Award className="w-5 h-5 text-slate-700" />
-                  <span className="text-sm font-extrabold text-slate-800">
-                    Practicar con un simulacro general
-                  </span>
-                  <ArrowRight className="w-4 h-4 text-slate-700" />
-                </button>
-              </div> */}
             </div>
           </div>
         </section>
+
+      <DashboardTour
+        open={tourOpen}
+        stepIndex={tourStep}
+        steps={tutorialSteps}
+        anchorId={tutorialSteps[tourStep]?.anchorId}
+        onClose={closeTour}
+        onNext={nextTour}
+        onPrev={prevTour}
+      />
       </div>
     </div>
   );

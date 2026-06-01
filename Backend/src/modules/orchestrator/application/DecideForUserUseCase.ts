@@ -123,7 +123,7 @@ function extractPlanItems(decision: OrchestratorDecision): Result<UpdatePlanPayl
         throw new AppError('Invalid decision: unsupported contentRefType in plan item', 400);
       }
 
-      const contentRefId = Number(item.contentRefId ?? item.content_ref_id ?? item.id);
+      const contentRefId = Number(item.contentRefId ?? item.content_ref_id ?? item.id ?? item.lesson_id);
       if (!Number.isInteger(contentRefId) || contentRefId <= 0) {
         throw new AppError('Invalid decision: contentRefId is required for plan items', 400);
       }

@@ -30,7 +30,7 @@ function StatCard({ label, value, hint, tone, icon: Icon }) {
   );
 }
 
-export default function SubjectOverview({ subject, courseId }) {
+export default function SubjectOverview({ subject, courseId, refreshToken = 0 }) {
   const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(Boolean(courseId));
 
@@ -63,7 +63,7 @@ export default function SubjectOverview({ subject, courseId }) {
     return () => {
       alive = false;
     };
-  }, [courseId]);
+  }, [courseId, refreshToken]);
 
   const completion = progress?.completionPercentage ?? 0;
   const totalLessons = progress?.totalLessons ?? 0;

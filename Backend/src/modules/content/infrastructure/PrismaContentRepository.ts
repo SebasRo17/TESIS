@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import type { ContentRepository, CreateContentEventInput } from '../domain/ContentPorts';
+import type { ContentRepository, CreateContentEventInput, CreateContentVariantInput, LessonWithTopic } from '../domain/ContentPorts';
 import type { ContentEvent, ContentPrerequisite, ContentVariant, LessonReference } from '../domain/Content';
 
 export class PrismaContentRepository implements ContentRepository {
@@ -16,6 +16,25 @@ export class PrismaContentRepository implements ContentRepository {
     return {
       id: row.id,
       isActive: row.is_active,
+    };
+  }
+
+  async findLessonWithTopic(lessonId: number): Promise<LessonWithTopic | null> {
+    const row = await this.prisma.lessons.findUnique({
+      where: { id: lessonId },
+      select: {
+        id: true,
+        title: true,
+        topics: { select: { name: true } },
+        courses: { select: { title: true } },
+      },
+    });
+    if (!row) return null;
+    return {
+      id: row.id,
+      title: row.title,
+      topicName: row.topics?.name ?? null,
+      courseTitle: row.courses.title,
     };
   }
 
@@ -83,6 +102,22 @@ export class PrismaContentRepository implements ContentRepository {
       minMastery: Number(row.min_mastery),
       topicName: row.topics?.name ?? null,
     }));
+  }
+
+  async createContentVariant(input: CreateContentVariantInput): Promise<ContentVariant> {
+    const row = await this.prisma.content_variants.create({
+      data: {
+        lesson_id: input.lessonId,
+        modality: input.modality,
+        difficulty_profile: input.difficultyProfile ?? null,
+        reading_level: input.readingLevel ?? null,
+        body_html: input.bodyHtml,
+        est_minutes: input.estimatedMinutes ?? null,
+        is_active: true,
+        version: 1,
+      },
+    });
+    return this.mapVariant(row);
   }
 
   private mapVariant(row: any): ContentVariant {
