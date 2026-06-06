@@ -1,4 +1,10 @@
-import type { ContentEvent, ContentPrerequisite, ContentVariant, LessonReference } from './Content';
+import type {
+  ContentEvent,
+  ContentPrerequisite,
+  ContentVariant,
+  LessonReference,
+  UserContentAssignment,
+} from './Content';
 
 export interface CreateContentEventInput {
   userId: number;
@@ -16,6 +22,15 @@ export interface CreateContentVariantInput {
   estimatedMinutes?: number;
 }
 
+export interface CreateUserContentAssignmentInput {
+  userId: number;
+  lessonId: number;
+  contentVariantId: number;
+  assignedBy: string;
+  rationale?: string | null;
+  status: string;
+}
+
 export interface LessonWithTopic {
   id: number;
   title: string;
@@ -30,5 +45,6 @@ export interface ContentRepository {
   findVariantById(variantId: number): Promise<ContentVariant | null>;
   createContentEvent(input: CreateContentEventInput): Promise<ContentEvent>;
   createContentVariant(input: CreateContentVariantInput): Promise<ContentVariant>;
+  createUserContentAssignment(input: CreateUserContentAssignmentInput): Promise<UserContentAssignment>;
   findPrerequisitesByLessonId(lessonId: number): Promise<ContentPrerequisite[]>;
 }

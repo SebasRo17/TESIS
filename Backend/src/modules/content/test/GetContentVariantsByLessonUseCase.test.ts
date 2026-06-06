@@ -13,6 +13,7 @@ describe('GetContentVariantsByLessonUseCase', () => {
       findVariantById: vi.fn(),
       createContentEvent: vi.fn(),
       findPrerequisitesByLessonId: vi.fn(), findLessonWithTopic: vi.fn(), createContentVariant: vi.fn(),
+      createUserContentAssignment: vi.fn(),
     };
 
     useCase = new GetContentVariantsByLessonUseCase(repo);

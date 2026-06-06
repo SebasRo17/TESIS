@@ -15,6 +15,8 @@ describe('StartExamAttemptUseCase', () => {
       findById: vi.fn(),
       findByCourseId: vi.fn(),
       findByIdWithItems: vi.fn(),
+      resolveCourseIdByExamId: vi.fn(),
+      createWithItems: vi.fn(),
     };
 
     mockExamAttemptRepository = {

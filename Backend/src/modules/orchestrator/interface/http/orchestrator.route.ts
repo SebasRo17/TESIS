@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { env } from '../../../../config/env';
 import { prisma } from '../../../../infra/db/prisma';
 import { createAuthMiddleware } from '../../../auth/interface/http/middlewares/AuthMiddleware';
 import { JwtTokenService } from '../../../auth/infrastructure/JwtTokenService';
@@ -6,6 +7,7 @@ import { validateRequest } from '../../../assesment/interface/http/middlewares/v
 import { CreateStudyPlanUseCase } from '../../../study-plans/application/CreateStudyPlanUseCase';
 import { GetContentVariantsByLessonUseCase } from '../../../content/application/GetContentVariantsByLessonUseCase';
 import { RegisterContentEventUseCase } from '../../../content/application/RegisterContentEventUseCase';
+import { GenerateContentUseCase } from '../../../content/application/GenerateContentUseCase';
 import { PrismaContentRepository } from '../../../content/infrastructure/PrismaContentRepository';
 import { PrismaStudyPlansRepository } from '../../../study-plans/infrastructure/PrismaStudyPlansRepository';
 import { BuildUserSnapshotUseCase } from '../../application/BuildUserSnapshotUseCase';
@@ -39,12 +41,14 @@ export function createOrchestratorRoutes(): Router {
   const createStudyPlanUseCase = new CreateStudyPlanUseCase(studyPlansRepo);
   const getContentVariantsByLessonUseCase = new GetContentVariantsByLessonUseCase(contentRepo);
   const registerContentEventUseCase = new RegisterContentEventUseCase(contentRepo);
+  const generateContentUseCase = new GenerateContentUseCase(contentRepo, env.orchestrator.queryUrl);
   const decideForUserUseCase = new DecideForUserUseCase(
     orchestratorRepo,
-    new HttpOrchestratorModelClient(),
+    new HttpOrchestratorModelClient(env.orchestrator.decideUrl),
     createStudyPlanUseCase,
     getContentVariantsByLessonUseCase,
-    registerContentEventUseCase
+    registerContentEventUseCase,
+    generateContentUseCase
   );
   const registerDecisionUseCase = new RegisterOrchestratorDecisionUseCase(orchestratorRepo);
   const getDecisionHistoryUseCase = new GetDecisionHistoryUseCase(orchestratorRepo);

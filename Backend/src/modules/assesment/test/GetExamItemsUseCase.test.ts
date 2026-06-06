@@ -19,6 +19,8 @@ describe('GetExamItemsUseCase', () => {
       findById: vi.fn(),
       findByCourseId: vi.fn(),
       findByIdWithItems: vi.fn(),
+      resolveCourseIdByExamId: vi.fn(),
+      createWithItems: vi.fn(),
     };
 
     mockItemRepository = {
@@ -26,6 +28,8 @@ describe('GetExamItemsUseCase', () => {
       findByIds: vi.fn(),
       findByTopicId: vi.fn(),
       findByExamId: vi.fn(),
+      topicBelongsToCourse: vi.fn(),
+      create: vi.fn(),
     };
 
     useCase = new GetExamItemsUseCase(mockExamRepository, mockItemRepository);

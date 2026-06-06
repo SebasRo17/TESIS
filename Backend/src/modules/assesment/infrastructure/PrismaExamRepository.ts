@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { IExamRepository } from '../domain/AssessmentPorts';
+import type { CreateExamWithItemsData, IExamRepository } from '../domain/AssessmentPorts';
 import type { Exam, ExamWithItems, ExamMode } from '../domain/Exam';
 
 export class PrismaExamRepository implements IExamRepository {
@@ -60,6 +60,55 @@ export class PrismaExamRepository implements IExamRepository {
         weight: Number(ei.weight),
       })),
     };
+  }
+
+  async resolveCourseIdByExamId(examId: number): Promise<number | null> {
+    const examItem = await this.prisma.exam_items.findFirst({
+      where: { exam_id: examId },
+      select: {
+        items: {
+          select: {
+            topics: {
+              select: { course_id: true },
+            },
+          },
+        },
+      },
+    });
+
+    return examItem?.items?.topics?.course_id ?? null;
+  }
+
+  async createWithItems(data: CreateExamWithItemsData): Promise<ExamWithItems> {
+    return this.prisma.$transaction(async (tx) => {
+      const exam = await tx.exams.create({
+        data: {
+          title: data.title,
+          mode: data.mode as any,
+          time_limit_sec: data.timeLimitSec,
+          version: 1,
+          is_active: true,
+        },
+      });
+
+      await tx.exam_items.createMany({
+        data: data.itemIds.map((itemId, index) => ({
+          exam_id: exam.id,
+          item_id: itemId,
+          order_n: index + 1,
+          weight: 1,
+        })),
+      });
+
+      return {
+        ...this.toDomain(exam),
+        items: data.itemIds.map((itemId, index) => ({
+          itemId,
+          orderN: index + 1,
+          weight: 1,
+        })),
+      };
+    });
   }
 
   private toDomain(raw: any): Exam {

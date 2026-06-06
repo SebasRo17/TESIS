@@ -1,5 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
-import type { IItemRepository } from '../domain/AssessmentPorts';
+import type { CreateItemData, IItemRepository } from '../domain/AssessmentPorts';
 import type { AnswerKey, Item, ItemOption, ItemType } from '../domain/Item';
 
 export class PrismaItemRepository implements IItemRepository {
@@ -41,6 +41,38 @@ export class PrismaItemRepository implements IItemRepository {
     });
 
     return examItems.map((ei) => this.toDomain(ei.items));
+  }
+
+  async topicBelongsToCourse(topicId: number, courseId: number): Promise<boolean> {
+    const topic = await this.prisma.topics.findFirst({
+      where: {
+        id: topicId,
+        course_id: courseId,
+        is_active: true,
+      },
+      select: { id: true },
+    });
+
+    return !!topic;
+  }
+
+  async create(data: CreateItemData): Promise<Item> {
+    const item = await this.prisma.items.create({
+      data: {
+        topic_id: data.topicId,
+        type: data.type as any,
+        stem: data.stem,
+        options: data.options as any,
+        answer_key: data.answerKey as any,
+        explanation: data.explanation ?? null,
+        difficulty: data.difficulty,
+        source: data.source ?? null,
+        version: 1,
+        is_active: true,
+      },
+    });
+
+    return this.toDomain(item);
   }
 
   private toDomain(raw: any): Item {

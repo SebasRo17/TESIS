@@ -1,5 +1,5 @@
-import type { Exam, ExamWithItems } from './Exam';
-import type { Item } from './Item';
+import type { Exam, ExamMode, ExamWithItems } from './Exam';
+import type { AnswerKey, Item, ItemOption, ItemType } from './Item';
 import type { ExamAttempt, ItemResponse, ExamAttemptWithDetails } from './ExamAttempt';
 
 /**
@@ -9,6 +9,8 @@ export interface IExamRepository {
   findById(id: number): Promise<Exam | null>;
   findByCourseId(courseId: number, activeOnly?: boolean): Promise<Exam[]>;
   findByIdWithItems(id: number): Promise<ExamWithItems | null>;
+  resolveCourseIdByExamId(examId: number): Promise<number | null>;
+  createWithItems(data: CreateExamWithItemsData): Promise<ExamWithItems>;
 }
 
 /**
@@ -19,6 +21,26 @@ export interface IItemRepository {
   findByIds(ids: number[]): Promise<Item[]>;
   findByTopicId(topicId: number, activeOnly?: boolean): Promise<Item[]>;
   findByExamId(examId: number): Promise<Item[]>;
+  topicBelongsToCourse(topicId: number, courseId: number): Promise<boolean>;
+  create(data: CreateItemData): Promise<Item>;
+}
+
+export interface CreateItemData {
+  topicId: number;
+  type: ItemType;
+  stem: string;
+  options: ItemOption[] | null;
+  answerKey: AnswerKey;
+  explanation?: string | null;
+  difficulty: number;
+  source?: string | null;
+}
+
+export interface CreateExamWithItemsData {
+  title: string;
+  mode: ExamMode;
+  timeLimitSec: number;
+  itemIds: number[];
 }
 
 /**

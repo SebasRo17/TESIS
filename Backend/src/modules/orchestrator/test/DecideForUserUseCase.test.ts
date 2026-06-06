@@ -8,6 +8,7 @@ describe('DecideForUserUseCase', () => {
   let createStudyPlanUseCase: { execute: ReturnType<typeof vi.fn> };
   let getContentVariantsByLessonUseCase: { execute: ReturnType<typeof vi.fn> };
   let registerContentEventUseCase: { execute: ReturnType<typeof vi.fn> };
+  let generateContentUseCase: { execute: ReturnType<typeof vi.fn> };
   let useCase: DecideForUserUseCase;
 
   beforeEach(() => {
@@ -36,12 +37,17 @@ describe('DecideForUserUseCase', () => {
       execute: vi.fn(),
     };
 
+    generateContentUseCase = {
+      execute: vi.fn(),
+    };
+
     useCase = new DecideForUserUseCase(
       repo,
       modelClient,
       createStudyPlanUseCase as any,
       getContentVariantsByLessonUseCase as any,
-      registerContentEventUseCase as any
+      registerContentEventUseCase as any,
+      generateContentUseCase as any
     );
 
     vi.mocked(repo.buildSnapshot).mockResolvedValue({
@@ -212,6 +218,111 @@ describe('DecideForUserUseCase', () => {
       expect.objectContaining({
         decisionType: 'plan',
         modelVersion: 'qwen2.5:14b',
+      })
+    );
+  });
+
+  it('aplica plan en formato completo con content_ref_type y metadata', async () => {
+    vi.mocked(modelClient.decide).mockResolvedValue({
+      decision_type: 'plan',
+      plan: {
+        items: [
+          {
+            content_ref_type: 'lesson',
+            content_ref_id: 44,
+            type: 'lesson',
+            priority: 0.8,
+            order_n: 2,
+            due_at: '2026-06-08T00:00:00.000Z',
+            metadata: { status: 'pending', rationale: 'Refuerzo' },
+          },
+        ],
+      },
+      model_version: 'qwen2.5:14b',
+      payload: {},
+    } as any);
+
+    vi.mocked(createStudyPlanUseCase.execute).mockResolvedValue({
+      ok: true,
+      value: { id: 102, userId: 5, version: 2, state: 'active', source: 'orchestrator', items: [] },
+    });
+
+    const result = await useCase.execute({ userId: 5, courseId: 2 });
+
+    expect(result.ok).toBe(true);
+    expect(createStudyPlanUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            contentRefType: 'lesson',
+            contentRefId: 44,
+            orderN: 2,
+            metadata: { status: 'pending', rationale: 'Refuerzo' },
+          }),
+        ],
+      })
+    );
+  });
+
+  it('ejecuta generate_content creando variante y asignacion', async () => {
+    vi.mocked(modelClient.decide).mockResolvedValue({
+      decision_type: 'generate_content',
+      payload: { lessonId: 33, modo: 'explicar', query: 'Algebra basica' },
+      rationale: 'Necesita explicacion personalizada',
+    } as any);
+
+    vi.mocked(repo.lessonBelongsToCourse).mockResolvedValue(true);
+    vi.mocked(generateContentUseCase.execute).mockResolvedValue({
+      ok: true,
+      value: {
+        variant: {
+          id: 901,
+          lessonId: 33,
+          modality: 'ai_explicar',
+          difficultyProfile: 'adaptive',
+          readingLevel: 'B1',
+          contentUrl: null,
+          bodyHtml: '<p>Contenido</p>',
+          estimatedMinutes: 5,
+          isActive: true,
+          version: 1,
+        },
+        assignment: {
+          id: 301,
+          userId: 5,
+          lessonId: 33,
+          contentVariantId: 901,
+          assignedBy: 'orchestrator',
+          rationale: 'Necesita explicacion personalizada',
+          status: 'active',
+        },
+        orchestratorResponse: {
+          route: 'numerico',
+          latencyCls: 1,
+          latencySp: 2,
+          modelVersion: 'qwen2.5:1.5b',
+        },
+      },
+    });
+
+    const result = await useCase.execute({ userId: 5, courseId: 2 });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.realDecisionType).toBe('generate_content');
+      expect(result.value.applied.generateContent).toEqual({
+        lessonId: 33,
+        variantId: 901,
+        assignmentId: 301,
+      });
+    }
+    expect(generateContentUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 5,
+        lessonId: 33,
+        modo: 'explicar',
+        query: 'Algebra basica',
+        assignedBy: 'orchestrator',
       })
     );
   });

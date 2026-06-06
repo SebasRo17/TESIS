@@ -4,6 +4,7 @@ This folder contains the manual functional testing artifacts for remote staging.
 
 - [functional-tests-staging.md](D:/REPOS/TESIS/Backend/docs/functional-tests-staging.md)
 - [functional-verification.sql](D:/REPOS/TESIS/Backend/docs/functional-verification.sql)
+- [backend-adaptativo-e2e.md](backend-adaptativo-e2e.md)
 
 Suggested usage:
 

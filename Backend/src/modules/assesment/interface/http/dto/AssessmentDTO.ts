@@ -9,6 +9,20 @@ export const GetExamsByCourseParamsSchema = z.object({
 
 export type GetExamsByCourseParams = z.infer<typeof GetExamsByCourseParamsSchema>;
 
+export const GenerateAssessmentParamsSchema = z.object({
+  courseId: z.string().regex(/^\d+$/).transform(Number),
+});
+
+export const GenerateAssessmentBodySchema = z.object({
+  topicId: z.number().int().positive(),
+  difficulty: z.enum(['basic', 'medium', 'advanced']).default('basic'),
+  questionCount: z.number().int().positive().max(10).default(5),
+  mode: z.enum(['diagnostic', 'mock', 'final']).default('diagnostic'),
+});
+
+export type GenerateAssessmentParams = z.infer<typeof GenerateAssessmentParamsSchema>;
+export type GenerateAssessmentBody = z.infer<typeof GenerateAssessmentBodySchema>;
+
 /**
  * DTO para obtener ítems públicos de un examen
  */

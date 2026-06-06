@@ -52,5 +52,12 @@ export const env = {
 
     orchestrator: {
         internalApiKey: process.env.ORCHESTRATOR_INTERNAL_API_KEY || "",
+        decideUrl: process.env.ORCHESTRATOR_DECIDE_URL || "http://127.0.0.1:8000/decide",
+        queryUrl: process.env.ORCHESTRATOR_QUERY_URL || "http://127.0.0.1:8000/query",
+    },
+
+    models: {
+        verbalUrl: process.env.VERBAL_MODEL_URL || "http://127.0.0.1:8001",
+        numericUrl: process.env.NUMERIC_MODEL_URL || "http://127.0.0.1:8080",
     },
 };

@@ -1,5 +1,11 @@
 import { PrismaClient } from '@prisma/client';
-import type { ContentRepository, CreateContentEventInput, CreateContentVariantInput, LessonWithTopic } from '../domain/ContentPorts';
+import type {
+  ContentRepository,
+  CreateContentEventInput,
+  CreateContentVariantInput,
+  CreateUserContentAssignmentInput,
+  LessonWithTopic,
+} from '../domain/ContentPorts';
 import type { ContentEvent, ContentPrerequisite, ContentVariant, LessonReference } from '../domain/Content';
 
 export class PrismaContentRepository implements ContentRepository {
@@ -118,6 +124,29 @@ export class PrismaContentRepository implements ContentRepository {
       },
     });
     return this.mapVariant(row);
+  }
+
+  async createUserContentAssignment(input: CreateUserContentAssignmentInput) {
+    const row = await this.prisma.user_content_assignments.create({
+      data: {
+        user_id: input.userId,
+        lesson_id: input.lessonId,
+        content_variant_id: input.contentVariantId,
+        assigned_by: input.assignedBy,
+        rationale: input.rationale ?? null,
+        status: input.status,
+      },
+    });
+
+    return {
+      id: row.id,
+      userId: row.user_id,
+      lessonId: row.lesson_id,
+      contentVariantId: row.content_variant_id,
+      assignedBy: row.assigned_by,
+      rationale: row.rationale,
+      status: row.status,
+    };
   }
 
   private mapVariant(row: any): ContentVariant {

@@ -6,6 +6,8 @@ import type { SubmitItemResponseUseCase } from '../../application/SubmitItemResp
 import type { FinishExamAttemptUseCase } from '../../application/FinishExamAttemptUseCase';
 import type { GetExamAttemptDetailUseCase } from '../../application/GetExamAttemptDetailUseCase';
 import type { GetExamAttemptReviewUseCase } from '../../application/GetExamAttemptReviewUseCase';
+import type { ReplanAfterAssessmentUseCase } from '../../application/ReplanAfterAssessmentUseCase';
+import type { GenerateAssessmentUseCase } from '../../application/GenerateAssessmentUseCase';
 import type {
   GetExamsByCourseParams,
   GetExamItemsParams,
@@ -14,6 +16,8 @@ import type {
   SubmitItemResponseBody,
   FinishExamAttemptParams,
   GetExamAttemptDetailParams,
+  GenerateAssessmentBody,
+  GenerateAssessmentParams,
   ExamDTO,
   ExamItemDTO,
   ExamWithItemsDTO,
@@ -33,8 +37,37 @@ export class AssessmentController {
     private readonly submitItemResponseUseCase: SubmitItemResponseUseCase,
     private readonly finishExamAttemptUseCase: FinishExamAttemptUseCase,
     private readonly getExamAttemptDetailUseCase: GetExamAttemptDetailUseCase,
-    private readonly getExamAttemptReviewUseCase: GetExamAttemptReviewUseCase
+    private readonly getExamAttemptReviewUseCase: GetExamAttemptReviewUseCase,
+    private readonly replanAfterAssessmentUseCase?: ReplanAfterAssessmentUseCase,
+    private readonly generateAssessmentUseCase?: GenerateAssessmentUseCase
   ) {}
+
+  async generateAssessment(req: Request, res: Response): Promise<void> {
+    try {
+      if (!this.generateAssessmentUseCase) {
+        res.status(503).json({ error: 'Generacion de evaluaciones no configurada' });
+        return;
+      }
+
+      const { courseId } = req.params as unknown as GenerateAssessmentParams;
+      const body = req.body as GenerateAssessmentBody;
+      const userId = (req as any).user.id;
+
+      const generated = await this.generateAssessmentUseCase.execute({
+        userId,
+        courseId,
+        topicId: body.topicId,
+        difficulty: body.difficulty,
+        questionCount: body.questionCount,
+        mode: body.mode as any,
+      });
+
+      res.status(201).json({ success: true, data: generated });
+    } catch (error) {
+      const status = typeof (error as any)?.status === 'number' ? (error as any).status : 500;
+      res.status(status).json({ error: error instanceof Error ? error.message : 'Error interno del servidor' });
+    }
+  }
 
   /**
    * GET /courses/:courseId/exams
@@ -140,8 +173,18 @@ export class AssessmentController {
       const userId = (req as any).user.id;
 
       const attempt = await this.finishExamAttemptUseCase.execute(attemptId, userId);
+      const orchestration = this.replanAfterAssessmentUseCase
+        ? await this.replanAfterAssessmentUseCase.execute({ userId, examId: attempt.examId })
+        : { status: 'skipped', courseId: null, error: 'Replanificacion no configurada' };
 
-      const response: ExamAttemptDTO = this.toExamAttemptDTO(attempt);
+      if (orchestration.status === 'failed') {
+        console.error('[AssessmentController] Error recalculando ruta:', orchestration.error);
+      }
+
+      const response: ExamAttemptDTO & { orchestration: unknown } = {
+        ...this.toExamAttemptDTO(attempt),
+        orchestration,
+      };
 
       res.status(200).json({
         success: true,

@@ -10,6 +10,7 @@ import type { CreateStudyPlanUseCase } from '../../study-plans/application/Creat
 import type { StudyPlanItemRefType } from '../../study-plans/domain/StudyPlan';
 import type { GetContentVariantsByLessonUseCase } from '../../content/application/GetContentVariantsByLessonUseCase';
 import type { RegisterContentEventUseCase } from '../../content/application/RegisterContentEventUseCase';
+import type { GenerateContentMode, GenerateContentUseCase } from '../../content/application/GenerateContentUseCase';
 
 export interface DecideForUserInput extends SnapshotInput {}
 
@@ -19,9 +20,10 @@ export interface DecideForUserOutput {
   applied: {
     updatePlan?: unknown;
     reinforceTopic?: { topicId: number; lessonId: number; variantId: number; eventId: number };
-    generateContent?: { lessonId: number; variantId: number; eventId: number };
+    generateContent?: { lessonId: number; variantId: number; assignmentId?: number; eventId?: number };
   };
   decisionRecordId: number;
+  realDecisionType: OrchestratorDecisionType;
 }
 
 interface UpdatePlanPayloadItem {
@@ -72,6 +74,19 @@ function getDecisionType(decision: OrchestratorDecision): OrchestratorDecisionTy
   }
 
   return null;
+}
+
+function getPayload(decision: OrchestratorDecision): Record<string, unknown> {
+  const decisionRecord = decision as unknown as Record<string, unknown>;
+  return isRecord(decisionRecord.payload) ? decisionRecord.payload : {};
+}
+
+function getGenerateContentMode(value: unknown): GenerateContentMode {
+  if (value === 'explicar' || value === 'generar_ejercicio' || value === 'evaluar_respuesta') {
+    return value;
+  }
+
+  return 'explicar';
 }
 
 function getDecisionStringField(
@@ -166,7 +181,8 @@ export class DecideForUserUseCase {
     private readonly modelClient: OrchestratorModelClient,
     private readonly createStudyPlanUseCase: CreateStudyPlanUseCase,
     private readonly getContentVariantsByLessonUseCase: GetContentVariantsByLessonUseCase,
-    private readonly registerContentEventUseCase: RegisterContentEventUseCase
+    private readonly registerContentEventUseCase: RegisterContentEventUseCase,
+    private readonly generateContentUseCase?: GenerateContentUseCase
   ) {}
 
   private async registerContentInteraction(
@@ -229,7 +245,8 @@ export class DecideForUserUseCase {
       const applied: DecideForUserOutput['applied'] = {};
 
       if (normalizedDecisionType === 'reinforce_topic') {
-        const topicId = Number((decision.payload as Record<string, unknown>).topicId);
+        const payload = getPayload(decision);
+        const topicId = Number(payload.topicId ?? payload.topic_id);
         if (!Number.isInteger(topicId) || topicId <= 0) {
           return err(new AppError('Invalid decision: topicId is required for reinforce_topic', 400));
         }
@@ -239,7 +256,7 @@ export class DecideForUserUseCase {
           return err(new AppError('Invalid decision: topicId does not belong to the course', 400));
         }
 
-        const payloadLessonId = Number((decision.payload as Record<string, unknown>).lessonId);
+        const payloadLessonId = Number(payload.lessonId ?? payload.lesson_id);
         const lessonId = Number.isInteger(payloadLessonId) && payloadLessonId > 0
           ? payloadLessonId
           : await this.repo.findActiveLessonByTopic(topicId);
@@ -251,7 +268,7 @@ export class DecideForUserUseCase {
         const contentAction = await this.registerContentInteraction(input.userId, lessonId, {
           decisionType: 'reinforce_topic',
           topicId,
-          strategy: (decision.payload as Record<string, unknown>).strategy ?? null,
+          strategy: payload.strategy ?? null,
         });
 
         if (!contentAction.ok) {
@@ -267,7 +284,12 @@ export class DecideForUserUseCase {
       }
 
       if (normalizedDecisionType === 'generate_content') {
-        const lessonId = Number((decision.payload as Record<string, unknown>).lessonId);
+        if (!this.generateContentUseCase) {
+          return err(new AppError('Content generation use case is not configured', 500));
+        }
+
+        const payload = getPayload(decision);
+        const lessonId = Number(payload.lessonId ?? payload.lesson_id ?? payload.contentRefId ?? payload.content_ref_id);
         if (!Number.isInteger(lessonId) || lessonId <= 0) {
           return err(new AppError('Invalid decision: lessonId is required for generate_content', 400));
         }
@@ -277,19 +299,26 @@ export class DecideForUserUseCase {
           return err(new AppError('Invalid decision: lessonId does not belong to the course', 400));
         }
 
-        const contentAction = await this.registerContentInteraction(input.userId, lessonId, {
-          decisionType: 'generate_content',
-          payload: decision.payload,
-        });
+        const rationale = getDecisionStringField(decision, 'rationale', 'rationale');
+        const generateInput = {
+          userId: input.userId,
+          lessonId,
+          modo: getGenerateContentMode(payload.modo ?? payload.mode),
+          assignedBy: 'orchestrator',
+          ...(rationale ? { rationale } : {}),
+          ...(typeof payload.query === 'string' ? { query: payload.query } : {}),
+        };
 
-        if (!contentAction.ok) {
-          return err(contentAction.error);
+        const generated = await this.generateContentUseCase.execute(generateInput);
+
+        if (!generated.ok) {
+          return err(generated.error);
         }
 
         applied.generateContent = {
-          lessonId: contentAction.value.lessonId,
-          variantId: contentAction.value.variantId,
-          eventId: contentAction.value.eventId,
+          lessonId,
+          variantId: generated.value.variant.id,
+          assignmentId: generated.value.assignment.id,
         };
       }
 
@@ -337,6 +366,7 @@ export class DecideForUserUseCase {
         decision,
         applied,
         decisionRecordId: persisted.id,
+        realDecisionType: normalizedDecisionType,
       });
     } catch {
       return err(new AppError('Error al ejecutar orquestacion', 500));

@@ -129,7 +129,7 @@ export class ContentController {
         userId: req.user.id,
         lessonId,
         modo,
-        query,
+        ...(query !== undefined ? { query } : {}),
       });
 
       if (!result.ok) {

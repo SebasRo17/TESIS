@@ -20,6 +20,16 @@ export interface ContentEvent {
   eventValue: unknown;
 }
 
+export interface UserContentAssignment {
+  id: number;
+  userId: number;
+  lessonId: number;
+  contentVariantId: number;
+  assignedBy: string;
+  rationale: string | null;
+  status: string;
+}
+
 export interface ContentPrerequisite {
   id: number;
   lessonId: number;

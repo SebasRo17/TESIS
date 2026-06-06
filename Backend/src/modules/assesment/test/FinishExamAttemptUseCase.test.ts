@@ -43,13 +43,22 @@ describe('FinishExamAttemptUseCase', () => {
       findById: vi.fn(),
       findByCourseId: vi.fn(),
       findByIdWithItems: vi.fn(),
+      resolveCourseIdByExamId: vi.fn(),
+      createWithItems: vi.fn(),
     };
 
     useCase = new FinishExamAttemptUseCase(
       mockExamAttemptRepository,
       mockItemResponseRepository,
       mockExamRepository,
-      { findById: vi.fn(), findByIds: vi.fn().mockResolvedValue([]), findByTopicId: vi.fn(), findByExamId: vi.fn() }
+      {
+        findById: vi.fn(),
+        findByIds: vi.fn().mockResolvedValue([]),
+        findByTopicId: vi.fn(),
+        findByExamId: vi.fn(),
+        topicBelongsToCourse: vi.fn(),
+        create: vi.fn(),
+      }
     );
   });
 

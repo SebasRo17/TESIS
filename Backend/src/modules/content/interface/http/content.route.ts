@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../../../../infra/db/prisma';
+import { env } from '../../../../config/env';
 import { createAuthMiddleware } from '../../../auth/interface/http/middlewares/AuthMiddleware';
 import { JwtTokenService } from '../../../auth/infrastructure/JwtTokenService';
 import { validateRequest } from '../../../assesment/interface/http/middlewares/validation';
@@ -28,7 +29,7 @@ export function createContentRoutes(): Router {
   const registerContentEventUseCase = new RegisterContentEventUseCase(repository);
   const getPrerequisitesUseCase = new GetContentPrerequisitesByLessonUseCase(repository);
 
-  const generateContentUseCase = new GenerateContentUseCase(repository);
+  const generateContentUseCase = new GenerateContentUseCase(repository, env.orchestrator.queryUrl);
 
   const controller = new ContentController(
     getVariantsByLessonUseCase,

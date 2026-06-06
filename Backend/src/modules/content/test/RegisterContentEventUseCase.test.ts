@@ -13,6 +13,7 @@ describe('RegisterContentEventUseCase', () => {
       findVariantById: vi.fn(),
       createContentEvent: vi.fn(),
       findPrerequisitesByLessonId: vi.fn(), findLessonWithTopic: vi.fn(), createContentVariant: vi.fn(),
+      createUserContentAssignment: vi.fn(),
     };
 
     useCase = new RegisterContentEventUseCase(repo);

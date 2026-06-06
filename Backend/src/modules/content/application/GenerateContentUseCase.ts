@@ -1,7 +1,7 @@
 import { AppError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../utils/result';
 import type { ContentRepository } from '../domain/ContentPorts';
-import type { ContentVariant } from '../domain/Content';
+import type { ContentVariant, UserContentAssignment } from '../domain/Content';
 
 export type GenerateContentMode = 'explicar' | 'generar_ejercicio' | 'evaluar_respuesta';
 
@@ -10,10 +10,13 @@ export interface GenerateContentInput {
   lessonId: number;
   modo: GenerateContentMode;
   query?: string | undefined;
+  assignedBy?: string | undefined;
+  rationale?: string | undefined;
 }
 
 export interface GenerateContentOutput {
   variant: ContentVariant;
+  assignment: UserContentAssignment;
   orchestratorResponse: {
     route: string;
     latencyCls: number;
@@ -117,8 +120,18 @@ export class GenerateContentUseCase {
         },
       });
 
+      const assignment = await this.contentRepo.createUserContentAssignment({
+        userId: input.userId,
+        lessonId: input.lessonId,
+        contentVariantId: variant.id,
+        assignedBy: input.assignedBy ?? 'user',
+        rationale: input.rationale ?? null,
+        status: 'active',
+      });
+
       return ok({
         variant,
+        assignment,
         orchestratorResponse: {
           route: orchestratorResult.route_to || 'unknown',
           latencyCls: orchestratorResult.latency_cls_s || 0,

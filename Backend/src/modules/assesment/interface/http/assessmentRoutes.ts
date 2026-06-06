@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { env } from '../../../../config/env';
 import { AssessmentController } from './AssessmentController';
 import { validateRequest } from './middlewares/validation';
 import { createAuthMiddleware } from '../../../auth/interface/http/middlewares/AuthMiddleware';
@@ -11,6 +12,8 @@ import {
   SubmitItemResponseBodySchema,
   FinishExamAttemptParamsSchema,
   GetExamAttemptDetailParamsSchema,
+  GenerateAssessmentParamsSchema,
+  GenerateAssessmentBodySchema,
 } from './dto/AssessmentDTO';
 
 // Import repositories
@@ -27,10 +30,21 @@ import { SubmitItemResponseUseCase } from '../../application/SubmitItemResponseU
 import { FinishExamAttemptUseCase } from '../../application/FinishExamAttemptUseCase';
 import { GetExamAttemptDetailUseCase } from '../../application/GetExamAttemptDetailUseCase';
 import { GetExamAttemptReviewUseCase } from '../../application/GetExamAttemptReviewUseCase';
+import { ReplanAfterAssessmentUseCase } from '../../application/ReplanAfterAssessmentUseCase';
+import { GenerateAssessmentUseCase } from '../../application/GenerateAssessmentUseCase';
 
 // Import mastery
 import { PrismaMasteryRepository } from '../../../mastery/infrastructure/PrismaMasteryRepository';
 import { UpdateMasteryUseCase } from '../../../mastery/application/UpdateMasteryUseCase';
+import { PrismaOrchestratorRepository } from '../../../orchestrator/infrastructure/PrismaOrchestratorRepository';
+import { HttpOrchestratorModelClient } from '../../../orchestrator/infrastructure/HttpOrchestratorModelClient';
+import { DecideForUserUseCase } from '../../../orchestrator/application/DecideForUserUseCase';
+import { PrismaStudyPlansRepository } from '../../../study-plans/infrastructure/PrismaStudyPlansRepository';
+import { CreateStudyPlanUseCase } from '../../../study-plans/application/CreateStudyPlanUseCase';
+import { PrismaContentRepository } from '../../../content/infrastructure/PrismaContentRepository';
+import { GetContentVariantsByLessonUseCase } from '../../../content/application/GetContentVariantsByLessonUseCase';
+import { RegisterContentEventUseCase } from '../../../content/application/RegisterContentEventUseCase';
+import { GenerateContentUseCase } from '../../../content/application/GenerateContentUseCase';
 
 // Import Prisma client
 import { prisma } from '../../../../infra/db/prisma';
@@ -47,6 +61,17 @@ export const createAssessmentRouter = (): Router => {
   const itemResponseRepository = new PrismaItemResponseRepository(prisma);
   const masteryRepository = new PrismaMasteryRepository(prisma);
   const updateMasteryUseCase = new UpdateMasteryUseCase(masteryRepository);
+  const orchestratorRepository = new PrismaOrchestratorRepository(prisma);
+  const studyPlansRepository = new PrismaStudyPlansRepository(prisma);
+  const contentRepository = new PrismaContentRepository(prisma);
+  const decideForUserUseCase = new DecideForUserUseCase(
+    orchestratorRepository,
+    new HttpOrchestratorModelClient(env.orchestrator.decideUrl),
+    new CreateStudyPlanUseCase(studyPlansRepository),
+    new GetContentVariantsByLessonUseCase(contentRepository),
+    new RegisterContentEventUseCase(contentRepository),
+    new GenerateContentUseCase(contentRepository, env.orchestrator.queryUrl)
+  );
 
   // Inicializar casos de uso
   const getExamsByCourseUseCase = new GetExamsByCourseUseCase(examRepository);
@@ -70,6 +95,15 @@ export const createAssessmentRouter = (): Router => {
   );
   const getExamAttemptDetailUseCase = new GetExamAttemptDetailUseCase(examAttemptRepository);
   const getExamAttemptReviewUseCase = new GetExamAttemptReviewUseCase(examAttemptRepository, itemRepository);
+  const replanAfterAssessmentUseCase = new ReplanAfterAssessmentUseCase(
+    examRepository,
+    decideForUserUseCase
+  );
+  const generateAssessmentUseCase = new GenerateAssessmentUseCase(
+    examRepository,
+    itemRepository,
+    env.orchestrator.queryUrl
+  );
 
   // Inicializar controlador
   const controller = new AssessmentController(
@@ -79,10 +113,22 @@ export const createAssessmentRouter = (): Router => {
     submitItemResponseUseCase,
     finishExamAttemptUseCase,
     getExamAttemptDetailUseCase,
-    getExamAttemptReviewUseCase
+    getExamAttemptReviewUseCase,
+    replanAfterAssessmentUseCase,
+    generateAssessmentUseCase
   );
 
   // Rutas
+  router.post(
+    '/courses/:courseId/assessments/generate',
+    authMiddleware,
+    validateRequest({
+      params: GenerateAssessmentParamsSchema,
+      body: GenerateAssessmentBodySchema,
+    }),
+    controller.generateAssessment.bind(controller)
+  );
+
   router.get(
     '/courses/:courseId/exams',
     authMiddleware,
