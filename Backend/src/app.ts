@@ -25,6 +25,16 @@ export function createApp() {
     },
   }));
 
+  // Request logging
+  app.use((req, res, next) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      const ms = Date.now() - start;
+      console.log(`${req.method} ${req.originalUrl} ${res.statusCode} ${ms}ms`);
+    });
+    next();
+  });
+
   // Rutas
   app.use('/api', createRouter());
 
