@@ -6,11 +6,16 @@ import { swaggerSpec } from './docs/swagger';
 
 export function createApp() {
   const app = express();
+  app.set('etag', false);
 
   // Middlewares globales
   app.use(cors());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+  app.use('/api', (_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
 
   // Documentación Swagger
   app.get('/api-docs-json', (_req, res) => {
