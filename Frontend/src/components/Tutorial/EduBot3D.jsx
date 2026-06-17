@@ -1,8 +1,10 @@
-import React, { useRef, useMemo } from 'react';
+import React, { Suspense, useRef, useMemo } from 'react';
 import { Canvas, useFrame, useGraph } from '@react-three/fiber';
 import { ContactShadows, Environment, useGLTF } from '@react-three/drei';
 import { SkeletonUtils } from 'three-stdlib';
 import * as THREE from 'three';
+
+const LUMIBOT_MODEL_PATH = '/models/LumiBot.glb';
 
 function lerpBone(nodes, boneName, axis, target, alpha = 0.1) {
   const bone = nodes?.[boneName];
@@ -12,7 +14,7 @@ function lerpBone(nodes, boneName, axis, target, alpha = 0.1) {
 
 const RobotModel = ({ interactive, mode = 'idle', stepIndex = 0, pointDirection = 'right' }) => {
   const group = useRef();
-  const { scene } = useGLTF('/LumiBot-transformed.glb');
+  const { scene } = useGLTF(LUMIBOT_MODEL_PATH);
   const clone = useMemo(() => SkeletonUtils.clone(scene), [scene]);
   const { nodes, materials } = useGraph(clone);
 
@@ -209,8 +211,10 @@ export default function EduBot3D({ className = "", interactive = true }) {
         <directionalLight position={[2.2, 3.2, 2.8]} intensity={1.1} castShadow />
         <spotLight position={[-2, 3, 4]} angle={0.45} penumbra={1} intensity={0.8} />
         <Environment preset="city" />
-        <RobotModel interactive={interactive} />
-        <ContactShadows position={[0, -1.35, 0]} opacity={0.32} scale={3.2} blur={2.2} far={2.8} />
+        <Suspense fallback={null}>
+          <RobotModel interactive={interactive} />
+          <ContactShadows position={[0, -1.35, 0]} opacity={0.32} scale={3.2} blur={2.2} far={2.8} />
+        </Suspense>
       </Canvas>
     </div>
   );
@@ -225,11 +229,13 @@ export function EduBot3DWithMode({ className = '', interactive = false, mode = '
         <directionalLight position={[2.2, 3.2, 2.8]} intensity={1.1} castShadow />
         <spotLight position={[-2, 3, 4]} angle={0.45} penumbra={1} intensity={0.8} />
         <Environment preset="city" />
-        <RobotModel interactive={interactive} mode={mode} stepIndex={stepIndex} pointDirection={pointDirection} />
-        <ContactShadows position={[0, -1.35, 0]} opacity={0.32} scale={3.2} blur={2.2} far={2.8} />
+        <Suspense fallback={null}>
+          <RobotModel interactive={interactive} mode={mode} stepIndex={stepIndex} pointDirection={pointDirection} />
+          <ContactShadows position={[0, -1.35, 0]} opacity={0.32} scale={3.2} blur={2.2} far={2.8} />
+        </Suspense>
       </Canvas>
     </div>
   );
 }
 
-useGLTF.preload('/LumiBot-transformed.glb');
+useGLTF.preload(LUMIBOT_MODEL_PATH);
