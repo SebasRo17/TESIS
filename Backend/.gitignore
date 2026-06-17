@@ -35,6 +35,7 @@ coverage/
 # Prisma
 prisma/migrations/
 prisma/.env
+prisma/dump-*.sql
 
 # Temporary files
 tmp/

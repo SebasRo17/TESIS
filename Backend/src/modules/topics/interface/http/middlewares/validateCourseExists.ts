@@ -1,8 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { AppError } from '../../../../../core/errors/AppError';
-
-const prisma = new PrismaClient();
+import { prisma } from '../../../../../infra/db/prisma';
 
 function getSingleParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -26,7 +24,7 @@ export const validateCourseExists = async (
     const courseId = parseInt(courseIdParam, 10);
 
     if (isNaN(courseId)) {
-      throw new AppError('El courseId debe ser un número válido', 400);
+      throw new AppError('El courseId debe ser un numero valido', 400);
     }
 
     const course = await prisma.courses.findUnique({
@@ -42,3 +40,4 @@ export const validateCourseExists = async (
     next(error);
   }
 };
+

@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { PrismaClient } from '@prisma/client';
 import { TopicsController } from './TopicsController';
 import { PrismaTopicRepository } from '../../infrastructure/PrismaTopicRepository';
 import { GetTopicsTreeUseCase } from '../../application/GetTopicsTreeUseCase';
@@ -8,13 +7,13 @@ import { GetTopicByIdUseCase } from '../../application/GetTopicByIdUseCase';
 import { validateCourseExists } from './middlewares/validateCourseExists';
 import { createAuthMiddleware } from '../../../auth/interface/http/middlewares/AuthMiddleware';
 import { JwtTokenService } from '../../../auth/infrastructure/JwtTokenService';
+import { prisma } from '../../../../infra/db/prisma';
 
 const tokenService = new JwtTokenService();
 const authMiddleware = createAuthMiddleware(tokenService);
 
 export function createTopicsRoutes() {
   const router = Router();
-  const prisma = new PrismaClient();
 
   // Inicializar dependencias
   const topicRepository = new PrismaTopicRepository(prisma);
